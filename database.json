@@ -1,0 +1,28 @@
+{
+  "rides": [
+    {
+      "uuid": "r1",
+      "fromPK": true,
+      "time": 9234729990,
+      "price": 100,
+      "users": ["93274234", "24352436"]
+    },
+    {
+      "uuid": "r2",
+      "fromPK": false,
+      "time": 92347293440,
+      "price": 200,
+      "users": ["93274234", "24352436"]
+    }
+  ],
+  "users": [
+    {
+      "telegramId": 93274234,
+      "rides": ["r1", "r2"]
+    },
+    {
+      "telegramId": 24352436,
+      "rides": ["r2", "r1"]
+    }
+  ]
+}
