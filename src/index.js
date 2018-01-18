@@ -35,6 +35,15 @@ const User = mongoose.model('users')
 // userPromise.save().catch(e => console.log(e) )
 
 
+// -- ACTION_TYPE ENUM
+const ACTION_TYPE = {
+  TOGGLE_JOIN_RIDE: 'tjr',
+  // SHOW_CINEMAS: 'sc',
+  // SHOW_CINEMAS_MAP: 'scm',
+  // SHOW_FILMS: 'sf'
+}
+
+
 // =============================================
 // *********************************************
 //             BOT START
@@ -57,11 +66,29 @@ bot.on('message', msg => {
   const chatId = helper.getChatId(msg)
 
   switch (msg.text) {
+    case kb.home.createRide:
+      console.log('createRide')
+      bot.sendMessage(chatId, `Выберите маршрут:`, {
+        reply_markup: {keyboard: keyboard.createRide}
+      })
+      break
+
+    case kb.ride.fromPk:
+      console.log('kb.ride.fromPk')
+      createRideFromPK(chatId, msg.from.id)
+      break
+
+    case kb.ride.toPk:
+      console.log('kb.ride.toPk')
+      createRideToPK(chatId, msg.from.id)
+      break
+
     case kb.home.rides:
       console.log('chatId = ', chatId)
       console.log('msg.from.id = ', msg.from.id)
       showRides(chatId, msg.from.id)
       break
+
     case kb.home.myRides:
       console.log('chatId = ', chatId)
       console.log('msg.from.id = ', msg.from.id)
@@ -73,12 +100,50 @@ bot.on('message', msg => {
         reply_markup: {keyboard: keyboard.home}
       })
       break
+
     default:
       console.log(msg.text)
       break
   }
 
 })
+
+// --------------------
+// -- callback_query
+// --------------------
+
+bot.on('callback_query', query => {
+
+  const userId = query.from.id
+
+  console.log('query.data = ',query.data)
+
+  let data
+  try {
+    data = JSON.parse(query.data)
+  } catch (e) {
+    throw new Error('Data is not an object')
+  }
+
+  const { type } = data
+
+  if (type === ACTION_TYPE.TOGGLE_JOIN_RIDE) {
+    toggleJoinRide(userId, query.id, data)
+  }
+
+
+  // if (type === ACTION_TYPE.SHOW_CINEMAS_MAP) {
+  //   const {lat, lon} = data
+  //   bot.sendLocation(query.message.chat.id, lat, lon)
+  // } else if (type === ACTION_TYPE.SHOW_CINEMAS) {
+  //   sendCinemasByQuery(userId, {uuid: {'$in': data.cinemaUuids}})
+  // } else if (type === ACTION_TYPE.TOGGLE_FAV_FILM) {
+  //   toggleFavouriteFilm(userId, query.id, data)
+  // } else if (type === ACTION_TYPE.SHOW_FILMS) {
+  //   sendFilmsByQuery(userId, {uuid: {'$in': data.filmUuids}})
+  // }
+})
+
 
 
 
@@ -97,6 +162,51 @@ bot.onText(/\/start/, msg => {
     }
   })
 
+})
+
+// -- Rides inline section
+bot.onText(/\/r(.+)/, (msg, [source, match]) => {
+  const rideUuid = helper.getItemUuid(source)
+  const chatId = helper.getChatId(msg)
+
+  Promise.all([
+    Ride.findOne({uuid: rideUuid}),
+    User.findOne({telegramId: msg.from.id})
+  ])
+  .then(([ride, user]) => {
+
+    console.log(ride)
+
+    let userIsJoined = false
+
+    if (user) {
+      userIsJoined = user.rides.indexOf(ride.uuid) !== -1
+    }
+
+    const joinMessageText = userIsJoined ? 'Отказаться от поездки' : 'Присоединиться к поездке'
+
+    const caption = `Маршрут: ${ride.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"}\nЦена за такси: ${ride.price}\nУчастников: 1/3\nВзнос с участника: ${ride.price/2}`
+
+    bot.sendMessage(chatId, caption, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: joinMessageText,
+              callback_data: JSON.stringify({
+                type: ACTION_TYPE.TOGGLE_JOIN_RIDE,
+                rideUuid: ride.uuid,
+                userIsJoined: userIsJoined
+              })
+            }
+          ]
+        ]
+      }
+
+    })
+
+
+  })
 })
 
 
@@ -125,7 +235,7 @@ function showRides(chatId, telegramId) {
     let html
     if (rides.length) {
       html = rides.map((r, i) => {
-        return `<b>${i + 1}.</b> ${r.fromPK === true? "From PK" : "To PK"} - <b>${r.price} руб</b> (/r${r.uuid})`
+        return `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"} - <b>${r.price} руб</b> (/r${r.uuid})`
       }).join('\n')
     } else {
       html = 'Никто пока не создал поездок'
@@ -161,4 +271,168 @@ function showMyRides(chatId, telegramId) {
 
     }).catch(e => console.log(e))
 
+}
+
+function createRideFromPK(chatId, telegramId) {
+
+  User.findOne({telegramId})
+    .then(user => {
+      if (user) {
+
+        Ride.find().then(rides => {
+          const newRideUuid = `r${rides.length + 1}`
+
+          console.log('newRideUuid = ', newRideUuid)
+
+          user.rides.push(newRideUuid)
+
+          user.save().then(_ => {
+
+            let ride = new Ride({
+              "uuid": newRideUuid,
+              "fromPK": true,
+              "time": 9234729990,
+              "price": 100,
+              "users": [telegramId]
+            })
+
+            ride.save().then(_ => {
+              bot.sendMessage(chatId, 'Вы создали поездку', {
+                reply_markup: {keyboard: keyboard.home}
+              })
+
+            }).catch(e => console.log(e))
+
+          }).catch(err => console.log(err))
+
+        }).catch(e => console.log(e))
+
+
+      } else {
+        console.log('createRideFromPK.noUser')
+        let user = new User({
+          telegramId: telegramId,
+          rides: [newRideUuid]
+        })
+
+        user.save().then(_ => {
+
+          let ride = new Ride({
+            "uuid": newRideUuid,
+            "fromPK": true,
+            "time": 9234729990,
+            "price": 100,
+            "users": [telegramId]
+          })
+
+          ride.save().then(_ => {
+            bot.sendMessage(chatId, 'Вы создали поездку', {
+              reply_markup: {keyboard: keyboard.home}
+            })
+          }).catch(e => console.log(e))
+
+        }).catch(err => console.log(err))
+
+      }
+
+    }).catch(e => console.log(e))
+}
+
+function createRideToPK(chatId, telegramId) {
+
+  User.findOne({telegramId})
+    .then(user => {
+      if (user) {
+
+        Ride.find().then(rides => {
+          const newRideUuid = `r${rides.length + 1}`
+
+          console.log('newRideUuid = ', newRideUuid)
+
+          user.rides.push(newRideUuid)
+
+          user.save().then(_ => {
+
+            let ride = new Ride({
+              "uuid": newRideUuid,
+              "fromPK": false,
+              "time": 9234729990,
+              "price": 100,
+              "users": [telegramId]
+            })
+
+            ride.save().then(_ => {
+              bot.sendMessage(chatId, 'Вы создали поездку', {
+                reply_markup: {keyboard: keyboard.home}
+              })
+
+            }).catch(e => console.log(e))
+
+          }).catch(err => console.log(err))
+
+        }).catch(e => console.log(e))
+
+
+      } else {
+        console.log('createRideFromPK.noUser')
+        let user = new User({
+          telegramId: telegramId,
+          rides: [newRideUuid]
+        })
+
+        user.save().then(_ => {
+
+          let ride = new Ride({
+            "uuid": newRideUuid,
+            "fromPK": false,
+            "time": 9234729990,
+            "price": 100,
+            "users": [telegramId]
+          })
+
+          ride.save().then(_ => {
+            bot.sendMessage(chatId, 'Вы создали поездку', {
+              reply_markup: {keyboard: keyboard.home}
+            })
+          }).catch(e => console.log(e))
+
+        }).catch(err => console.log(err))
+
+      }
+
+    }).catch(e => console.log(e))
+}
+
+
+
+function toggleJoinRide(userId, queryId, {rideUuid, userIsJoined}) {
+
+  console.log('queryId = ', queryId)
+  let userPromise
+
+  User.findOne({telegramId: userId})
+    .then(user => {
+      if (user) {
+        if (userIsJoined) {
+          user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
+        } else {
+          user.rides.push(rideUuid)
+        }
+        userPromise = user
+      } else {
+        userPromise = new User({
+          telegramId: userId,
+          rides: [rideUuid]
+        })
+      }
+
+      const answerText = userIsJoined ? 'Вы отказались от поездки' : 'Вы присоединились к поездке'
+
+      userPromise.save().then(_ => {
+        bot.answerCallbackQuery({
+          callback_query_id: queryId,
+          text: answerText
+        })
+      }).catch(err => console.log(err))
+    }).catch(err => console.log(err))
 }
