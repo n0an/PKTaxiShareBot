@@ -1,3 +1,7 @@
+// ===========================================
+//                 IMPORTS
+// ===========================================
+
 const TelegramBot = require('node-telegram-bot-api')
 const mongoose = require('mongoose')
 const config = require('./config')
@@ -6,6 +10,10 @@ const helper = require('./helper')
 const keyboard = require('./keyboard')
 const kb = require('./keyboard-buttons')
 const database = require('../database.json')
+
+// ===========================================
+//                 PROPERTIES
+// ===========================================
 
 helper.logStart()
 
@@ -55,9 +63,9 @@ const bot = new TelegramBot(token.TOKEN, {
 })
 
 
-// ===============================
-// MAIN BOT LISTENER
-// ===============================
+// ===========================================
+// ************ MAIN BOT LISTENER ************
+// ===========================================
 
 bot.on('message', msg => {
     console.log('Working', msg.from.first_name)
@@ -108,9 +116,10 @@ bot.on('message', msg => {
 
 })
 
-// --------------------
-// -- callback_query
-// --------------------
+
+// ==========================
+// ===== callback_query =====
+// ==========================
 
 bot.on('callback_query', query => {
 
@@ -145,11 +154,9 @@ bot.on('callback_query', query => {
 })
 
 
-
-
-// ===============================
-// PARSE USER INPUT METHODS
-// ===============================
+// ====================================
+// ===== PARSE USER INPUT METHODS =====
+// ====================================
 
 bot.onText(/\/start/, msg => {
 

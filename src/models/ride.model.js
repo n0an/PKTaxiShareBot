@@ -11,7 +11,7 @@ const RideSchema = new Schema({
         required: true
     },
     owner: {
-        type: String,
+        type: Number,
         required: true
     },
     users: {
