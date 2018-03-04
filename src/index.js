@@ -51,13 +51,6 @@ const ACTION_TYPE = {
     // SHOW_FILMS: 'sf'
 }
 
-
-// =============================================
-// *********************************************
-//                 BOT START
-// *********************************************
-// =============================================
-
 const bot = new TelegramBot(token.TOKEN, {
     polling: true
 })
@@ -76,7 +69,7 @@ bot.on('message', msg => {
     switch (msg.text) {
         case kb.home.createRide:
             console.log('createRide')
-            bot.sendMessage(chatId, `Выберите маршрут:`, {
+            bot.sendMessage(chatId, 'Выберите маршрут:', {
                 reply_markup: {keyboard: keyboard.createRide}
             })
             break
@@ -104,7 +97,7 @@ bot.on('message', msg => {
             break
 
         case kb.back:
-            bot.sendMessage(chatId, `Создайте поездку или присоединитесь к созданным`, {
+            bot.sendMessage(chatId, 'Создайте поездку или присоединитесь к созданным', {
                 reply_markup: {keyboard: keyboard.home}
             })
             break
@@ -131,10 +124,12 @@ bot.onText(/\/start/, msg => {
             keyboard: keyboard.home
         }
     })
-
 })
 
-// -- Rides inline section
+// ====================================
+//        RIDES COMMAND LISTENER
+// ====================================
+
 bot.onText(/\/r(.+)/, (msg, [source, match]) => {
     const rideUuid = helper.getItemUuid(source)
     const chatId = helper.getChatId(msg)
@@ -145,17 +140,13 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
     ])
         .then(([ride, user]) => {
 
-            console.log(ride)
+            console.log('ride = ' + ride)
 
             let userIsJoined = false
 
             // if (user) {
             //     userIsJoined = user.rides.indexOf(ride.uuid) !== -1
             // }
-
-            if (user) {
-                userIsJoined = ride.users.indexOf(telegramId) !== -1
-            }
 
             const joinMessageText = userIsJoined ? 'Отказаться от поездки' : 'Присоединиться к поездке'
 
@@ -237,9 +228,14 @@ function sendHTML(chatId, html, kbName = null) {
     bot.sendMessage(chatId, html, options)
 }
 
+// --------------------
+//         SHOW
+// --------------------
+
 function showRides(chatId, telegramId) {
 
-    Ride.find().then(rides => {
+    Ride.find({owner: {'$nin': [telegramId]}})
+        .then(rides => {
 
         let html
         if (rides.length) {
@@ -262,7 +258,7 @@ function showMyRides(chatId, telegramId) {
 
         if (rides.length) {
             html = rides.map((r, i) => {
-                return `<b>${i + 1}.</b> ${r.fromPK === true? "From PK" : "To PK"} (/r${r.uuid})`
+                return `<b>${i + 1}.</b> ${r.fromPK === true? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"} (/r${r.uuid})`
             }).join('\n')
         } else {
             html = 'Нет созданных Вами поездок'
@@ -270,14 +266,11 @@ function showMyRides(chatId, telegramId) {
 
         sendHTML(chatId, html, 'home')
     }).catch(e => console.log(e))
-
-
-
 }
 
-// ====================
-// ===== CREATION =====
-// ====================
+// --------------------
+//       CREATE
+// --------------------
 
 function createRideFromPK(chatId, telegramId) {
     createRide(true, chatId, telegramId)
@@ -289,32 +282,42 @@ function createRideToPK(chatId, telegramId) {
 
 function createRide(fromPK, chatId, telegramId) {
 
-    let newRideUuid = guid()
+    Ride.find()
+        .then(rides => {
+            console.log('rides count = ', rides.length)
 
-    console.log(newRideUuid)
+            let newRideUuid = `r${rides.length + 1}`
+            console.log('newRideUuid = ', newRideUuid)
 
-    User.findOne({telegramId})
-        .then(user => {
-            if (user) {
+            User.findOne({telegramId})
+                .then(user => {
+                    if (user) {
 
-                console.log('newRideUuid = ', newRideUuid)
+                        console.log('newRideUuid = ', newRideUuid)
 
-                user.rides.push(newRideUuid)
+                        user.rides.push(newRideUuid)
 
-                saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId)
+                        saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId)
 
-            } else {
-                console.log('createRideFromPK.noUser')
+                    } else {
+                        console.log('createRideFromPK.noUser')
 
-                let user = new User({
-                    telegramId: telegramId,
-                    rides: [newRideUuid]
-                })
+                        let user = new User({
+                            telegramId: telegramId,
+                            rides: [newRideUuid]
+                        })
 
-                saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId)
-            }
+                        saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId)
+                    }
 
-        }).catch(e => console.log(e))
+                }).catch(e => console.log(e))
+
+
+        })
+        .catch(err => console.log(err))
+
+
+
 }
 
 function saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId) {
@@ -325,7 +328,8 @@ function saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId) 
             "uuid": newRideUuid,
             "fromPK": fromPK,
             "owner": telegramId,
-            "users": [telegramId]
+            "users": [telegramId],
+            "deleted": false
         })
 
         ride.save().then(_ => {
@@ -347,9 +351,9 @@ function guid() {
     return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
 
-// ====================
-// ======= JOIN =======
-// ====================
+// --------------------
+//        JOIN
+// --------------------
 
 function toggleJoinRide(userId, queryId, {rideUuid, userIsJoined}) {
 
