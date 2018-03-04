@@ -45,7 +45,7 @@ const User = mongoose.model('users')
 
 // -- ACTION_TYPE ENUM
 const ACTION_TYPE = {
-    TOGGLE_JOIN_RIDE: 'tjr',
+    RIDE_DELETE: 'ride_delete',
     // SHOW_CINEMAS: 'sc',
     // SHOW_CINEMAS_MAP: 'scm',
     // SHOW_FILMS: 'sf'
@@ -63,7 +63,6 @@ const bot = new TelegramBot(token.TOKEN, {
 bot.on('message', msg => {
     console.log('Working', msg.from.first_name)
 
-
     const chatId = helper.getChatId(msg)
 
     switch (msg.text) {
@@ -76,12 +75,13 @@ bot.on('message', msg => {
 
         case kb.ride.fromPk:
             console.log('kb.ride.fromPk')
-            createRideFromPK(chatId, msg.from.id)
+            console.log('msg = ', msg)
+            createRideFromPK(chatId, msg.from.id, msg.from.username)
             break
 
         case kb.ride.toPk:
             console.log('kb.ride.toPk')
-            createRideToPK(chatId, msg.from.id)
+            createRideToPK(chatId, msg.from.id, msg.from.username)
             break
 
         case kb.home.rides:
@@ -109,7 +109,6 @@ bot.on('message', msg => {
 
 })
 
-
 // ====================================
 //       PARSE USER INPUT METHODS
 // ====================================
@@ -118,7 +117,7 @@ bot.onText(/\/start/, msg => {
 
     console.log('bot.onText')
 
-    const text = `Здравствуйте, ${msg.from.first_name}\nВыберите команду для начала работы:`
+    const text = `Здравствуйте, ${msg.from.first_name}\nВыберите команду для начала работы`
     bot.sendMessage(helper.getChatId(msg), text, {
         reply_markup: {
             keyboard: keyboard.home
@@ -142,33 +141,33 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
 
             console.log('ride = ' + ride)
 
-            let userIsJoined = false
+            let userIsOwner = false
 
-            // if (user) {
-            //     userIsJoined = user.rides.indexOf(ride.uuid) !== -1
-            // }
 
-            const joinMessageText = userIsJoined ? 'Отказаться от поездки' : 'Присоединиться к поездке'
+            if (user) {
+                userIsOwner = ride.owner === msg.from.id
+            }
 
-            // const caption = `Маршрут: ${ride.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"}\nЦена за такси: ${ride.price}\nУчастников: 1/3\nВзнос с участника: ${ride.price/2}`
-            const caption = `Маршрут: ${ride.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"}`
+            const inlineKeyboardText = userIsOwner ? 'Удалить поездку' : 'Присоединиться к поездке'
+
+            const caption = `Маршрут: ${ride.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"}\nКонтакт: @${ride.ownerName}`
+
+            let actionType = userIsOwner ? ACTION_TYPE.RIDE_DELETE : ACTION_TYPE.RIDE_JOIN
 
             bot.sendMessage(chatId, caption, {
                 reply_markup: {
                     inline_keyboard: [
                         [
                             {
-                                text: joinMessageText,
+                                text: inlineKeyboardText,
                                 callback_data: JSON.stringify({
-                                    type: ACTION_TYPE.TOGGLE_JOIN_RIDE,
-                                    rideUuid: ride.uuid,
-                                    userIsJoined: userIsJoined
+                                    type: actionType,
+                                    rideUuid: ride.uuid
                                 })
                             }
                         ]
                     ]
                 }
-
             })
         })
 })
@@ -192,8 +191,8 @@ bot.on('callback_query', query => {
 
     const { type } = data
 
-    if (type === ACTION_TYPE.TOGGLE_JOIN_RIDE) {
-        toggleJoinRide(userId, query.id, data)
+    if (type === ACTION_TYPE.RIDE_DELETE) {
+        rideDelete(userId, query.id, data)
     }
 
 
@@ -253,7 +252,7 @@ function showRides(chatId, telegramId) {
 
 function showMyRides(chatId, telegramId) {
 
-    Ride.find({owner: {'$in': [telegramId]}}).then(rides => {
+    Ride.find({owner: {'$in': [telegramId]}, deleted: false}).then(rides => {
         let html
 
         if (rides.length) {
@@ -272,15 +271,17 @@ function showMyRides(chatId, telegramId) {
 //       CREATE
 // --------------------
 
-function createRideFromPK(chatId, telegramId) {
-    createRide(true, chatId, telegramId)
+function createRideFromPK(chatId, telegramId, username) {
+    createRide(true, chatId, telegramId, username)
 }
 
-function createRideToPK(chatId, telegramId) {
-    createRide(false, chatId, telegramId)
+function createRideToPK(chatId, telegramId, username) {
+    createRide(false, chatId, telegramId, username)
 }
 
-function createRide(fromPK, chatId, telegramId) {
+function createRide(fromPK, chatId, telegramId, username) {
+
+    console.log('ownername = ', username)
 
     Ride.find()
         .then(rides => {
@@ -297,7 +298,11 @@ function createRide(fromPK, chatId, telegramId) {
 
                         user.rides.push(newRideUuid)
 
-                        saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId)
+                        if (username) {
+                            saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid, chatId)
+                        } else {
+                            alertNoUsername(chatId)
+                        }
 
                     } else {
                         console.log('createRideFromPK.noUser')
@@ -307,20 +312,26 @@ function createRide(fromPK, chatId, telegramId) {
                             rides: [newRideUuid]
                         })
 
-                        saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId)
+                        if (username) {
+                            saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid, chatId)
+                        } else {
+                            alertNoUsername(chatId)
+                        }
                     }
 
                 }).catch(e => console.log(e))
-
-
         })
         .catch(err => console.log(err))
-
-
-
 }
 
-function saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId) {
+function alertNoUsername(chatId) {
+    bot.sendMessage(chatId, 'Нельзя создать поездку без имени пользователя.\n' +
+        'Добавьте имя пользователя в настройках Телеграм', {
+        reply_markup: {keyboard: keyboard.home}
+    })
+}
+
+function saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid, chatId) {
 
     user.save().then(_ => {
 
@@ -328,6 +339,7 @@ function saveUserWithCreatedRide(user, fromPK, telegramId, newRideUuid, chatId) 
             "uuid": newRideUuid,
             "fromPK": fromPK,
             "owner": telegramId,
+            "ownerName": username,
             "users": [telegramId],
             "deleted": false
         })
@@ -351,39 +363,80 @@ function guid() {
     return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
 
-// --------------------
-//        JOIN
-// --------------------
+// -----------------------------
+//        DELETE MY RIDE
+// -----------------------------
 
-function toggleJoinRide(userId, queryId, {rideUuid, userIsJoined}) {
+function rideDelete(userId, queryId, {rideUuid}) {
 
     console.log('queryId = ', queryId)
 
     let userPromise
 
-    User.findOne({telegramId: userId})
-        .then(user => {
+    Promise.all([
+        Ride.findOne({uuid: rideUuid}),
+        User.findOne({telegramId: userId})
+    ])
+        .then(([ride, user]) => {
+
             if (user) {
-                if (userIsJoined) {
-                    user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
-                } else {
-                    user.rides.push(rideUuid)
-                }
+
+                user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
+
                 userPromise = user
+
+
             } else {
-                userPromise = new User({
-                    telegramId: userId,
-                    rides: [rideUuid]
-                })
+                // smth wrong happened
             }
 
-            const answerText = userIsJoined ? 'Вы отказались от поездки' : 'Вы присоединились к поездке'
+            const answerText = 'Поездка удалена'
 
-            userPromise.save().then(_ => {
-                bot.answerCallbackQuery({
-                    callback_query_id: queryId,
-                    text: answerText
-                })
-            }).catch(err => console.log(err))
-        }).catch(err => console.log(err))
+            ride.deleted = true
+
+            ride.save().then(_ => {
+                userPromise.save().then(_ => {
+                    bot.answerCallbackQuery({
+                        callback_query_id: queryId,
+                        text: answerText
+                    })
+                }).catch(err => console.log(err))
+            })
+
+        })
+        .catch(err => console.log(err))
+
+
+
+    // User.findOne({telegramId: userId})
+    //
+    //     .then(user => {
+    //         if (user) {
+    //
+    //             user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
+    //
+    //
+    //
+    //             // if (userIsJoined) {
+    //             //     user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
+    //             // } else {
+    //             //     user.rides.push(rideUuid)
+    //             // }
+    //             userPromise = user
+    //         } else {
+    //             userPromise = new User({
+    //                 telegramId: userId,
+    //                 rides: [rideUuid]
+    //             })
+    //         }
+    //
+    //         const answerText = userIsJoined ? 'Вы отказались от поездки' : 'Вы присоединились к поездке'
+    //
+    //         userPromise.save().then(_ => {
+    //             bot.answerCallbackQuery({
+    //                 callback_query_id: queryId,
+    //                 text: answerText
+    //             })
+    //         }).catch(err => console.log(err))
+    //     }).catch(err => console.log(err))
 }
