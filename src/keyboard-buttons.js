@@ -1,7 +1,9 @@
 module.exports = {
   home: {
-    createRide: 'Создать поездку',
-    rides: 'Просмотреть возможные поездки',
+    // createRide: {text: 'Создать поездку', request_contact:true},
+      createRide: 'Создать поездку',
+
+      rides: 'Просмотреть возможные поездки',
     myRides: 'Мои поездки'
   },
   ride: {
