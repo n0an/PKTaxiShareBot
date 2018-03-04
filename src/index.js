@@ -54,7 +54,7 @@ const ACTION_TYPE = {
 
 // =============================================
 // *********************************************
-//             BOT START
+//                 BOT START
 // *********************************************
 // =============================================
 
@@ -64,7 +64,7 @@ const bot = new TelegramBot(token.TOKEN, {
 
 
 // ===========================================
-// ************ MAIN BOT LISTENER ************
+//              MAIN BOT LISTENER
 // ===========================================
 
 bot.on('message', msg => {
@@ -117,45 +117,8 @@ bot.on('message', msg => {
 })
 
 
-// ==========================
-// ===== callback_query =====
-// ==========================
-
-bot.on('callback_query', query => {
-
-    const userId = query.from.id
-
-    console.log('query.data = ',query.data)
-
-    let data
-    try {
-        data = JSON.parse(query.data)
-    } catch (e) {
-        throw new Error('Data is not an object')
-    }
-
-    const { type } = data
-
-    if (type === ACTION_TYPE.TOGGLE_JOIN_RIDE) {
-        toggleJoinRide(userId, query.id, data)
-    }
-
-
-// if (type === ACTION_TYPE.SHOW_CINEMAS_MAP) {
-//   const {lat, lon} = data
-//   bot.sendLocation(query.message.chat.id, lat, lon)
-// } else if (type === ACTION_TYPE.SHOW_CINEMAS) {
-//   sendCinemasByQuery(userId, {uuid: {'$in': data.cinemaUuids}})
-// } else if (type === ACTION_TYPE.TOGGLE_FAV_FILM) {
-//   toggleFavouriteFilm(userId, query.id, data)
-// } else if (type === ACTION_TYPE.SHOW_FILMS) {
-//   sendFilmsByQuery(userId, {uuid: {'$in': data.filmUuids}})
-// }
-})
-
-
 // ====================================
-// ===== PARSE USER INPUT METHODS =====
+//       PARSE USER INPUT METHODS
 // ====================================
 
 bot.onText(/\/start/, msg => {
@@ -216,14 +179,48 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
                 }
 
             })
-
-
         })
+})
+
+// ====================================
+//         CALLBACK LISTENER
+// ====================================
+
+bot.on('callback_query', query => {
+
+    const userId = query.from.id
+
+    console.log('query.data = ',query.data)
+
+    let data
+    try {
+        data = JSON.parse(query.data)
+    } catch (e) {
+        throw new Error('Data is not an object')
+    }
+
+    const { type } = data
+
+    if (type === ACTION_TYPE.TOGGLE_JOIN_RIDE) {
+        toggleJoinRide(userId, query.id, data)
+    }
+
+
+// if (type === ACTION_TYPE.SHOW_CINEMAS_MAP) {
+//   const {lat, lon} = data
+//   bot.sendLocation(query.message.chat.id, lat, lon)
+// } else if (type === ACTION_TYPE.SHOW_CINEMAS) {
+//   sendCinemasByQuery(userId, {uuid: {'$in': data.cinemaUuids}})
+// } else if (type === ACTION_TYPE.TOGGLE_FAV_FILM) {
+//   toggleFavouriteFilm(userId, query.id, data)
+// } else if (type === ACTION_TYPE.SHOW_FILMS) {
+//   sendFilmsByQuery(userId, {uuid: {'$in': data.filmUuids}})
+// }
 })
 
 
 // ===============================
-// HELPER METHODS
+//         HELPER METHODS
 // ===============================
 
 function sendHTML(chatId, html, kbName = null) {
@@ -247,7 +244,7 @@ function showRides(chatId, telegramId) {
         let html
         if (rides.length) {
             html = rides.map((r, i) => {
-                return `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"} - <b>${r.price} руб</b> (/r${r.uuid})`
+                return `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"} (/r${r.uuid})`
             }).join('\n')
         } else {
             html = 'Никто пока не создал поездок'
@@ -260,28 +257,21 @@ function showRides(chatId, telegramId) {
 
 function showMyRides(chatId, telegramId) {
 
-    User.findOne({telegramId})
-        .then(user => {
-            if (user) {
-                Ride.find({uuid: {'$in': user.owner}}).then(rides => {
-                    let html
+    Ride.find({owner: {'$in': [telegramId]}}).then(rides => {
+        let html
 
-                    if (rides.length) {
-                        html = rides.map((r, i) => {
-                            return `<b>${i + 1}.</b> ${r.fromPK === true? "From PK" : "To PK"} - <b>${r.price} руб</b> (/r${r.uuid})`
-                        }).join('\n')
-                    } else {
-                        html = 'Нет созданных Вами поездок'
-                    }
+        if (rides.length) {
+            html = rides.map((r, i) => {
+                return `<b>${i + 1}.</b> ${r.fromPK === true? "From PK" : "To PK"} (/r${r.uuid})`
+            }).join('\n')
+        } else {
+            html = 'Нет созданных Вами поездок'
+        }
 
-                    sendHTML(chatId, html, 'home')
-                }).catch(e => console.log(e))
-            } else {
-                console.log('showMyRides.noUser')
-                sendHTML(chatId, 'Нет созданных Вами поездок', 'home')
-            }
+        sendHTML(chatId, html, 'home')
+    }).catch(e => console.log(e))
 
-        }).catch(e => console.log(e))
+
 
 }
 
