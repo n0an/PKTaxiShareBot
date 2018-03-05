@@ -46,6 +46,7 @@ const User = mongoose.model('users')
 // -- ACTION_TYPE ENUM
 const ACTION_TYPE = {
     RIDE_DELETE: 'ride_delete',
+    RIDE_TOGGLE_JOIN: 'ride_toggle_join',
     // SHOW_CINEMAS: 'sc',
     // SHOW_CINEMAS_MAP: 'scm',
     // SHOW_FILMS: 'sf'
@@ -143,17 +144,25 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
             console.log('ride = ' + ride)
 
             let userIsOwner = false
-
+            let userIsJoined = false
 
             if (user) {
                 userIsOwner = ride.owner === msg.from.id
+                userIsJoined = ride.users.indexOf(msg.from.id) !== -1
+                console.log('userIsJoined = ', userIsJoined)
             }
 
-            const inlineKeyboardText = userIsOwner ? 'Удалить поездку' : 'Присоединиться к поездке'
+            let inlineKeyboardText
+
+            if (userIsOwner) {
+                inlineKeyboardText = 'Удалить поездку'
+            } else {
+                inlineKeyboardText = !userIsJoined ? 'Присоединиться к поездке' : 'Отказаться от поездки'
+            }
 
             const caption = `Маршрут: ${ride.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"}\nКонтакт: @${ride.ownerName}`
 
-            let actionType = userIsOwner ? ACTION_TYPE.RIDE_DELETE : ACTION_TYPE.RIDE_JOIN
+            let actionType = userIsOwner ? ACTION_TYPE.RIDE_DELETE : ACTION_TYPE.RIDE_TOGGLE_JOIN
 
             bot.sendMessage(chatId, caption, {
                 reply_markup: {
@@ -163,7 +172,8 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
                                 text: inlineKeyboardText,
                                 callback_data: JSON.stringify({
                                     type: actionType,
-                                    rideUuid: ride.uuid
+                                    rideUuid: ride.uuid,
+                                    userIsJoined: userIsJoined
                                 })
                             }
                         ]
@@ -194,6 +204,8 @@ bot.on('callback_query', query => {
 
     if (type === ACTION_TYPE.RIDE_DELETE) {
         rideDelete(userId, query.id, data)
+    } else if (type === ACTION_TYPE.RIDE_TOGGLE_JOIN) {
+        toggleJoinRide(userId, query.id, data)
     }
 
 
@@ -403,42 +415,69 @@ function rideDelete(userId, queryId, {rideUuid}) {
                         text: answerText
                     })
                 }).catch(err => console.log(err))
-            })
+            }).catch(err => console.log(err))
 
         })
         .catch(err => console.log(err))
 
-
-
-    // User.findOne({telegramId: userId})
-    //
-    //     .then(user => {
-    //         if (user) {
-    //
-    //             user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
-    //
-    //
-    //
-    //             // if (userIsJoined) {
-    //             //     user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
-    //             // } else {
-    //             //     user.rides.push(rideUuid)
-    //             // }
-    //             userPromise = user
-    //         } else {
-    //             userPromise = new User({
-    //                 telegramId: userId,
-    //                 rides: [rideUuid]
-    //             })
-    //         }
-    //
-    //         const answerText = userIsJoined ? 'Вы отказались от поездки' : 'Вы присоединились к поездке'
-    //
-    //         userPromise.save().then(_ => {
-    //             bot.answerCallbackQuery({
-    //                 callback_query_id: queryId,
-    //                 text: answerText
-    //             })
-    //         }).catch(err => console.log(err))
-    //     }).catch(err => console.log(err))
 }
+
+// -----------------------------
+//        JOIN RIDE
+// -----------------------------
+
+
+function toggleJoinRide(userId, queryId, {rideUuid, userIsJoined}) {
+
+    console.log('queryId = ', queryId)
+
+    let userPromise
+
+
+    Promise.all([
+        Ride.findOne({uuid: rideUuid}),
+        User.findOne({telegramId: userId})
+    ])
+        .then(([ride, user]) => {
+
+
+            if (user) {
+                if (userIsJoined) {
+                    user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
+                    ride.users = ride.users.filter(uUuid => uUuid != userId)
+                } else {
+                    user.rides.push(rideUuid)
+                    ride.users.push(userId)
+                }
+
+                userPromise = user
+
+
+            } else {
+                userPromise = new User({
+                    telegramId: userId,
+                    rides: [rideUuid]
+                })
+                ride.users.push(userId)
+            }
+
+            const answerText = userIsJoined ? 'Вы отказались от поездки' : 'Вы присоединились к поездке'
+
+            ride.save().then(_ => {
+                userPromise.save().then(_ => {
+
+
+                    bot.answerCallbackQuery({
+                        callback_query_id: queryId,
+                        text: answerText
+                    })
+                }).catch(err => console.log(err))
+            }).catch(err => console.log(err))
+
+        })
+
+
+}
+
+
+
