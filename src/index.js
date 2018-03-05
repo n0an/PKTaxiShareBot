@@ -47,9 +47,6 @@ const User = mongoose.model('users')
 const ACTION_TYPE = {
     RIDE_DELETE: 'ride_delete',
     RIDE_TOGGLE_JOIN: 'ride_toggle_join',
-    // SHOW_CINEMAS: 'sc',
-    // SHOW_CINEMAS_MAP: 'scm',
-    // SHOW_FILMS: 'sf'
 }
 
 const bot = new TelegramBot(token.TOKEN, {
@@ -141,31 +138,46 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
     ])
         .then(([ride, user]) => {
 
-            console.log('ride = ' + ride)
-
             let userIsOwner = false
             let userIsJoined = false
 
             if (user) {
                 userIsOwner = ride.owner === msg.from.id
                 userIsJoined = ride.users.indexOf(msg.from.id) !== -1
-                console.log('userIsJoined = ', userIsJoined)
             }
 
             let inlineKeyboardText
 
+            let caption = `Маршрут: ${ride.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"}\n`
+
             if (userIsOwner) {
                 inlineKeyboardText = 'Удалить поездку'
+                caption += 'Участники:\n'
+
+                participants = ride.users.filter(uUid => uUid != msg.from.id)
+
+                console.log('participants = ',participants)
+
+                html = participants.map((p, i) => {
+                    return `<b>${i + 1}.</b> ${p}`
+                }).join('\n')
+
+                caption += html
+
+
             } else {
                 inlineKeyboardText = !userIsJoined ? 'Присоединиться к поездке' : 'Отказаться от поездки'
+                caption += `Организатор: @${ride.ownerName}\n`
+                caption += `Участников: ${ride.users.length}`
             }
 
-            const caption = `Маршрут: ${ride.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"}\nКонтакт: @${ride.ownerName}`
+
 
             let actionType = userIsOwner ? ACTION_TYPE.RIDE_DELETE : ACTION_TYPE.RIDE_TOGGLE_JOIN
 
             bot.sendMessage(chatId, caption, {
                 reply_markup: {
+
                     inline_keyboard: [
                         [
                             {
@@ -178,7 +190,8 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
                             }
                         ]
                     ]
-                }
+                },
+                parse_mode: 'HTML'
             })
         })
 })
