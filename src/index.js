@@ -260,7 +260,6 @@ function showRides(chatId, telegramId) {
 
             sendHTML(chatId, html, 'home')
         }).catch(e => console.log(e))
-
 }
 
 function showMyRides(chatId, telegramId) {
@@ -419,13 +418,11 @@ function rideDelete(userId, queryId, {rideUuid}) {
 
         })
         .catch(err => console.log(err))
-
 }
 
 // -----------------------------
 //        JOIN RIDE
 // -----------------------------
-
 
 function toggleJoinRide(userId, queryId, {rideUuid, userIsJoined}) {
 
@@ -433,13 +430,11 @@ function toggleJoinRide(userId, queryId, {rideUuid, userIsJoined}) {
 
     let userPromise
 
-
     Promise.all([
         Ride.findOne({uuid: rideUuid}),
         User.findOne({telegramId: userId})
     ])
         .then(([ride, user]) => {
-
 
             if (user) {
                 if (userIsJoined) {
@@ -473,11 +468,5 @@ function toggleJoinRide(userId, queryId, {rideUuid, userIsJoined}) {
                     })
                 }).catch(err => console.log(err))
             }).catch(err => console.log(err))
-
         })
-
-
 }
-
-
-
