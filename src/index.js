@@ -86,13 +86,14 @@ bot.on('message', msg => {
 
         case kb.home.rides:
             console.log('chatId = ', chatId)
-            console.log('msg.from.id = ', msg.from.id)
+            console.log('kb.home.rides')
+
             showRides(chatId, msg.from.id)
             break
 
         case kb.home.myRides:
             console.log('chatId = ', chatId)
-            console.log('msg.from.id = ', msg.from.id)
+            console.log('kb.home.myRides')
             showMyRides(chatId, msg.from.id)
             break
 
@@ -233,38 +234,39 @@ function sendHTML(chatId, html, kbName = null) {
 
 function showRides(chatId, telegramId) {
 
-    Ride.find({owner: {'$nin': [telegramId]}})
+    Ride.find({owner: {'$nin': [telegramId]}, deleted: false})
         .then(rides => {
 
-        let html
-        if (rides.length) {
-            html = rides.map((r, i) => {
-                return `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"} (/r${r.uuid})`
-            }).join('\n')
-        } else {
-            html = 'Никто пока не создал поездок'
-        }
+            let html
+            if (rides.length) {
+                html = rides.map((r, i) => {
+                    return `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"} (/r${r.uuid})`
+                }).join('\n')
+            } else {
+                html = 'Никто пока не создал поездок'
+            }
 
-        sendHTML(chatId, html, 'home')
-    }).catch(e => console.log(e))
+            sendHTML(chatId, html, 'home')
+        }).catch(e => console.log(e))
 
 }
 
 function showMyRides(chatId, telegramId) {
 
-    Ride.find({owner: {'$in': [telegramId]}, deleted: false}).then(rides => {
-        let html
+    Ride.find({owner: {'$in': [telegramId]}, deleted: false})
+        .then(rides => {
+            let html
 
-        if (rides.length) {
-            html = rides.map((r, i) => {
-                return `<b>${i + 1}.</b> ${r.fromPK === true? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"} (/r${r.uuid})`
-            }).join('\n')
-        } else {
-            html = 'Нет созданных Вами поездок'
-        }
+            if (rides.length) {
+                html = rides.map((r, i) => {
+                    return `<b>${i + 1}.</b> ${r.fromPK === true? "ПК -> ст. Нахабино" : "ст. Нахабино -> ПК"} (/r${r.uuid})`
+                }).join('\n')
+            } else {
+                html = 'Нет созданных Вами поездок'
+            }
 
-        sendHTML(chatId, html, 'home')
-    }).catch(e => console.log(e))
+            sendHTML(chatId, html, 'home')
+        }).catch(e => console.log(e))
 }
 
 // --------------------
