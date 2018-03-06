@@ -3,7 +3,7 @@ module.exports = {
     // createRide: {text: 'Создать поездку', request_contact:true},
       createRide: 'Создать поездку',
 
-      rides: 'Просмотреть возможные поездки',
+      rides: 'Просмотреть поездки',
     myRides: 'Мои поездки'
   },
   ride: {

@@ -22,6 +22,10 @@ const RideSchema = new Schema({
         type: [Number],
         default: []
     },
+    usernames: {
+        type: [String],
+        default: []
+    },
     deleted: {
         type: Boolean,
         required: true
