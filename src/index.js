@@ -47,6 +47,7 @@ const User = mongoose.model('users')
 const ACTION_TYPE = {
     RIDE_DELETE: 'ride_delete',
     RIDE_TOGGLE_JOIN: 'ride_toggle_join',
+    RIDE_DELETE_ALL: 'ride_delete_all'
 }
 
 const bot = new TelegramBot(token.TOKEN, {
@@ -220,6 +221,8 @@ bot.on('callback_query', query => {
         rideDelete(userId, query.id, data)
     } else if (type === ACTION_TYPE.RIDE_TOGGLE_JOIN) {
         toggleJoinRide(userId, username,  query.id, data)
+    } else if (type === ACTION_TYPE.RIDE_DELETE_ALL) {
+        rideDeleteAll(userId, query.id, data)
     }
 
 
@@ -286,11 +289,40 @@ function showMyRides(chatId, telegramId) {
                 html = rides.map((r, i) => {
                     return `<b>${i + 1}.</b> ${r.fromPK === true? "ПК->Нахабино" : "Нахабино->ПК"} - ${r.users.length} чел (/r${r.uuid})`
                 }).join('\n')
+
+                let inlineKeyboardText = 'Удалить мои поездки'
+
+                let actionType = ACTION_TYPE.RIDE_DELETE_ALL
+
+                let rideUuids = rides.map((r) => r.uuid)
+
+                console.log('rideUuids = ', rideUuids)
+
+                bot.sendMessage(chatId, html, {
+                    reply_markup: {
+
+                        inline_keyboard: [
+                            [
+                                {
+                                    text: inlineKeyboardText,
+                                    callback_data: JSON.stringify({
+                                        type: actionType,
+                                        rides: rideUuids
+                                    })
+                                }
+                            ]
+                        ]
+                    },
+                    parse_mode: 'HTML'
+                })
+
+
             } else {
                 html = 'Нет созданных Вами поездок'
+                sendHTML(chatId, html, 'home')
+
             }
 
-            sendHTML(chatId, html, 'home')
         }).catch(e => console.log(e))
 }
 
@@ -352,17 +384,19 @@ function createRide(fromPK, chatId, telegramId, username) {
 }
 
 function alertCreateNoUsername(chatId) {
-    alertNoUsername(chatId)
+    alertNoUsername(chatId, 'создать поездку')
+}
+
+function alertJoinNoUsername(chatId) {
+    alertNoUsername(chatId, 'присоединиться к поездке')
 }
 
 function alertNoUsername(chatId, caption) {
-    bot.sendMessage(chatId, 'Нельзя создать поездку без имени пользователя.\n' +
+    bot.sendMessage(chatId, 'Нельзя', caption, ' без имени пользователя.\n' +
         'Добавьте имя пользователя в настройках Телеграм', {
         reply_markup: {keyboard: keyboard.home}
     })
 }
-
-
 
 
 function saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid, chatId) {
@@ -442,6 +476,36 @@ function rideDelete(userId, queryId, {rideUuid}) {
         .catch(err => console.log(err))
 }
 
+function rideDeleteAll(userId, queryId, {rides}) {
+
+    console.log('queryId = ', queryId)
+    console.log('ridesUuids = ', rides)
+
+    Ride.find({uuid: {'$in': rides}, deleted: false})
+        .then(rides => {
+
+            console.log('rides = ', rides)
+
+
+            const answerText = 'Ваши поездки удалены'
+
+            for (let i = 0; i < rides.length; i++) {
+                ride = rides[i]
+
+                ride.deleted = true
+
+                console.log('ride = ', ride)
+                ride.save().catch(e => console.log(e))
+            }
+
+            bot.answerCallbackQuery({
+                callback_query_id: queryId,
+                text: answerText
+            })
+
+        }).catch(err => console.log(err))
+}
+
 // -----------------------------
 //        JOIN RIDE
 // -----------------------------
@@ -464,7 +528,7 @@ function toggleJoinRide(userId, username, queryId, {rideUuid, userIsJoined}) {
                     if (username) {
                         ride.usernames = ride.usernames.filter(uName => uName != username)
                     } else {
-                        alertCreateNoUsername(chatId)
+                        alertJoinNoUsername(chatId)
                     }
 
 
@@ -475,14 +539,11 @@ function toggleJoinRide(userId, username, queryId, {rideUuid, userIsJoined}) {
                     if (username) {
                         ride.usernames.push(username)
                     } else {
-                        alertCreateNoUsername(chatId)
+                        alertJoinNoUsername(chatId)
                     }
-
-
                 }
 
                 userPromise = user
-
 
             } else {
                 userPromise = new User({
