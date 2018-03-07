@@ -42,7 +42,6 @@ const User = mongoose.model('users')
 //
 // userPromise.save().catch(e => console.log(e) )
 
-
 // -- ACTION_TYPE ENUM
 const ACTION_TYPE = {
     RIDE_DELETE: 'ride_delete',
@@ -53,7 +52,6 @@ const ACTION_TYPE = {
 const bot = new TelegramBot(token.TOKEN, {
     polling: true
 })
-
 
 // ===========================================
 //              MAIN BOT LISTENER
@@ -106,7 +104,6 @@ bot.on('message', msg => {
             console.log(msg.text)
             break
     }
-
 })
 
 // ====================================
@@ -165,14 +162,11 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
 
                 caption += html
 
-
             } else {
                 inlineKeyboardText = !userIsJoined ? 'Присоединиться к поездке' : 'Отказаться от поездки'
                 caption += `Организатор: @${ride.ownerName}\n`
                 caption += `Участников: ${ride.users.length}`
             }
-
-
 
             let actionType = userIsOwner ? ACTION_TYPE.RIDE_DELETE : ACTION_TYPE.RIDE_TOGGLE_JOIN
 
@@ -225,7 +219,6 @@ bot.on('callback_query', query => {
         rideDeleteAll(userId, query.id, data)
     }
 
-
 // if (type === ACTION_TYPE.SHOW_CINEMAS_MAP) {
 //   const {lat, lon} = data
 //   bot.sendLocation(query.message.chat.id, lat, lon)
@@ -237,7 +230,6 @@ bot.on('callback_query', query => {
 //   sendFilmsByQuery(userId, {uuid: {'$in': data.filmUuids}})
 // }
 })
-
 
 // ===============================
 //         HELPER METHODS
@@ -316,7 +308,6 @@ function showMyRides(chatId, telegramId) {
                     parse_mode: 'HTML'
                 })
 
-
             } else {
                 html = 'Нет созданных Вами поездок'
                 sendHTML(chatId, html, 'home')
@@ -377,7 +368,6 @@ function createRide(fromPK, chatId, telegramId, username) {
                             alertCreateNoUsername(chatId)
                         }
                     }
-
                 }).catch(e => console.log(e))
         })
         .catch(err => console.log(err))
@@ -417,19 +407,8 @@ function saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid
             bot.sendMessage(chatId, 'Вы создали поездку', {
                 reply_markup: {keyboard: keyboard.home}
             })
-
         }).catch(e => console.log(e))
-
     }).catch(err => console.log(err))
-}
-
-function guid() {
-    function s4() {
-        return Math.floor((1 + Math.random()) * 0x10000)
-            .toString(16)
-            .substring(1);
-    }
-    return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
 
 // -----------------------------
@@ -456,7 +435,7 @@ function rideDelete(userId, queryId, {rideUuid}) {
 
 
             } else {
-                // smth wrong happened
+                console.log('!CRITICAL: no user found!')
             }
 
             const answerText = 'Поездка удалена'
@@ -471,7 +450,6 @@ function rideDelete(userId, queryId, {rideUuid}) {
                     })
                 }).catch(err => console.log(err))
             }).catch(err => console.log(err))
-
         })
         .catch(err => console.log(err))
 }
@@ -530,7 +508,6 @@ function toggleJoinRide(userId, username, queryId, {rideUuid, userIsJoined}) {
                     } else {
                         alertJoinNoUsername(chatId)
                     }
-
 
                 } else {
                     user.rides.push(rideUuid)
