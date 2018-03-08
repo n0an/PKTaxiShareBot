@@ -6,10 +6,12 @@ const RideSchema = new Schema({
         type: String,
         required: true
     },
-    fromPK: {
-        type: Boolean,
+    // 0 - PK->Nahabino, 1 - Nahabino->PK, 2 - PK->Msc, 3 - Msc->Pk, 4 - PK->Globus, 5 - Globus->PK
+    routeType: {
+        type: Number,
         required: true
     },
+
     owner: {
         type: Number,
         required: true
@@ -33,6 +35,10 @@ const RideSchema = new Schema({
     datetime: {
         type: Date,
         required: false
+    },
+    createdAt: {
+        type: Date,
+        required: true
     }
 })
 

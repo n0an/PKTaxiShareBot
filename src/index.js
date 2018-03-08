@@ -50,11 +50,26 @@ const ACTION_TYPE = {
     RIDE_TIME: 'ride_time',
 }
 
+// -- ROUTE TYPE ENUM
+const ROUTE_TYPE = {
+    FROM_PK_TO_NAHABINO: 0,
+    TO_PK_FROM_NAHABINO: 1,
+
+    FROM_PK_TO_MOSCOW: 2,
+    TO_PK_FROM_MOSCOW: 3,
+
+    FROM_PK_TO_GLOBUS: 4,
+    TO_PK_FROM_GLOBUS: 5,
+}
+
+
+
 const bot = new TelegramBot(token.TOKEN, {
     polling: true
 })
 
-garbageRidesCollector()
+garbageRidesOverdueCollector()
+garbageRidesAbandonedCollector()
 
 // ===========================================
 //              MAIN BOT LISTENER
@@ -73,23 +88,77 @@ bot.on('message', msg => {
             })
             break
 
-        case kb.ride.fromPk:
-            console.log('kb.ride.fromPk')
-            console.log('msg = ', msg)
-            createRideFromPK(chatId, msg.from.id, msg.from.username)
+        case kb.ride.FROM_PK_TO_NAHABINO:
+            console.log('kb.ride.FROM_PK_TO_NAHABINO')
+            createRide(ROUTE_TYPE.FROM_PK_TO_NAHABINO, chatId, msg.from.id, msg.from.username)
             break
 
-        case kb.ride.toPk:
-            console.log('kb.ride.toPk')
-            createRideToPK(chatId, msg.from.id, msg.from.username)
+        case kb.ride.TO_PK_FROM_NAHABINO:
+            console.log('kb.ride.TO_PK_FROM_NAHABINO')
+            createRide(ROUTE_TYPE.TO_PK_FROM_NAHABINO, chatId, msg.from.id, msg.from.username)
             break
+
+        case kb.ride.FROM_PK_TO_MOSCOW:
+            console.log('kb.ride.FROM_PK_TO_MOSCOW')
+            createRide(ROUTE_TYPE.FROM_PK_TO_MOSCOW, chatId, msg.from.id, msg.from.username)
+            break
+
+        case kb.ride.TO_PK_FROM_MOSCOW:
+            console.log('kb.ride.TO_PK_FROM_MOSCOW')
+            createRide(ROUTE_TYPE.TO_PK_FROM_MOSCOW, chatId, msg.from.id, msg.from.username)
+            break
+
+        case kb.ride.FROM_PK_TO_GLOBUS:
+            console.log('kb.ride.FROM_PK_TO_GLOBUS')
+            createRide(ROUTE_TYPE.FROM_PK_TO_GLOBUS, chatId, msg.from.id, msg.from.username)
+            break
+
+        case kb.ride.TO_PK_FROM_GLOBUS:
+            console.log('kb.ride.TO_PK_FROM_GLOBUS')
+            createRide(ROUTE_TYPE.TO_PK_FROM_GLOBUS, chatId, msg.from.id, msg.from.username)
+            break
+
+        case kb.viewRide.FROM_PK_TO_NAHABINO:
+            console.log('kb.viewRide.FROM_PK_TO_NAHABINO')
+            showRides(ROUTE_TYPE.FROM_PK_TO_NAHABINO, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.TO_PK_FROM_NAHABINO:
+            console.log('kb.viewRide.TO_PK_FROM_NAHABINO')
+            showRides(ROUTE_TYPE.TO_PK_FROM_NAHABINO, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.FROM_PK_TO_MOSCOW:
+            console.log('kb.viewRide.FROM_PK_TO_MOSCOW')
+            showRides(ROUTE_TYPE.FROM_PK_TO_MOSCOW, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.TO_PK_FROM_MOSCOW:
+            console.log('kb.viewRide.TO_PK_FROM_MOSCOW')
+            showRides(ROUTE_TYPE.TO_PK_FROM_MOSCOW, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.FROM_PK_TO_GLOBUS:
+            console.log('kb.viewRide.FROM_PK_TO_GLOBUS')
+            showRides(ROUTE_TYPE.FROM_PK_TO_GLOBUS, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.TO_PK_FROM_GLOBUS:
+            console.log('kb.viewRide.TO_PK_FROM_GLOBUS')
+            showRides(ROUTE_TYPE.TO_PK_FROM_GLOBUS, chatId, msg.from.id)
+            break
+
 
         case kb.home.rides:
             console.log('chatId = ', chatId)
             console.log('kb.home.rides')
 
-            showRides(chatId, msg.from.id)
+
+            bot.sendMessage(chatId, 'Выберите маршрут:', {
+                reply_markup: {keyboard: keyboard.viewRide}
+            })
             break
+
 
         case kb.home.myRides:
             console.log('chatId = ', chatId)
@@ -213,7 +282,7 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
             if (userIsOwner) {
 
                 let timeStampsMarks = [['+30 мин', '+1 ч'],
-                                        ['+2 ч', '+3 ч', '+1 д']]
+                    ['+2 ч', '+3 ч', '+1 д']]
 
                 let timers_keyboard1 = []
                 let timers_keyboard2 = []
@@ -315,7 +384,40 @@ function sendHTML(chatId, html, kbName = null) {
 
 function prepareHTMLShowRides(rides) {
     return rides.map((r, i) => {
-        let outStr = `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК->Нахабино" : "Нахабино->ПК"}`
+        let outStr = `<b>${i + 1}.</b> `
+
+        let routeStr
+        switch (r.routeType) {
+            case ROUTE_TYPE.FROM_PK_TO_NAHABINO:
+                routeStr = kb.ride.FROM_PK_TO_NAHABINO
+                break
+
+            case ROUTE_TYPE.TO_PK_FROM_NAHABINO:
+                routeStr = kb.ride.TO_PK_FROM_NAHABINO
+                break
+
+            case ROUTE_TYPE.FROM_PK_TO_MOSCOW:
+                routeStr = kb.ride.FROM_PK_TO_MOSCOW
+                break
+
+            case ROUTE_TYPE.TO_PK_FROM_MOSCOW:
+                routeStr = kb.ride.TO_PK_FROM_MOSCOW
+                break
+
+            case ROUTE_TYPE.FROM_PK_TO_GLOBUS:
+                routeStr = kb.ride.FROM_PK_TO_GLOBUS
+                break
+
+            case ROUTE_TYPE.TO_PK_FROM_GLOBUS:
+                routeStr = kb.ride.TO_PK_FROM_GLOBUS
+                break
+
+            default:
+                break
+        }
+
+        outStr += routeStr
+
         outStr += ` - ${r.users.length} чел`
         if (r.datetime) {
             outStr += `, ${helper.getDateFromRide(r)}`
@@ -329,9 +431,11 @@ function prepareHTMLShowRides(rides) {
 //         SHOW RIDE
 // -------------------------
 
-function showRides(chatId, telegramId) {
+function showRides(routeType, chatId, telegramId) {
 
-    Ride.find({owner: {'$nin': [telegramId]}, deleted: false})
+    console.log('showRides --', routeType)
+
+    Ride.find({owner: {'$nin': [telegramId]}, deleted: false, routeType: {'$in': [routeType]}})
         .then(rides => {
 
             let html
@@ -354,11 +458,11 @@ function showMyRides(chatId, telegramId) {
             if (rides.length) {
                 html = prepareHTMLShowRides(rides)
 
-                let inlineKeyboardText = 'Удалить мои поездки'
+                console.log('html = ', html)
+
+                let inlineKeyboardText = 'Удалить все мои поездки'
 
                 let actionType = ACTION_TYPE.RIDE_DELETE_ALL
-
-                let rideUuids = rides.map((r) => r.uuid)
 
                 bot.sendMessage(chatId, html, {
                     reply_markup: {
@@ -369,7 +473,6 @@ function showMyRides(chatId, telegramId) {
                                     text: inlineKeyboardText,
                                     callback_data: JSON.stringify({
                                         type: actionType,
-                                        rides: rideUuids
                                     })
                                 }
                             ]
@@ -390,15 +493,8 @@ function showMyRides(chatId, telegramId) {
 //       CREATE RIDE
 // -------------------------
 
-function createRideFromPK(chatId, telegramId, username) {
-    createRide(true, chatId, telegramId, username)
-}
 
-function createRideToPK(chatId, telegramId, username) {
-    createRide(false, chatId, telegramId, username)
-}
-
-function createRide(fromPK, chatId, telegramId, username) {
+function createRide(routeType, chatId, telegramId, username) {
 
     Ride.find()
         .then(rides => {
@@ -412,7 +508,7 @@ function createRide(fromPK, chatId, telegramId, username) {
                         user.rides.push(newRideUuid)
 
                         if (username) {
-                            saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid, chatId)
+                            saveUserWithCreatedRide(user, routeType, telegramId, username, newRideUuid, chatId)
                         } else {
                             alertCreateNoUsername(chatId)
                         }
@@ -425,7 +521,7 @@ function createRide(fromPK, chatId, telegramId, username) {
                         })
 
                         if (username) {
-                            saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid, chatId)
+                            saveUserWithCreatedRide(user, routeType, telegramId, username, newRideUuid, chatId)
                         } else {
                             alertCreateNoUsername(chatId)
                         }
@@ -450,18 +546,19 @@ function alertNoUsername(chatId, caption) {
     })
 }
 
-function saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid, chatId) {
+function saveUserWithCreatedRide(user, routeType, telegramId, username, newRideUuid, chatId) {
 
     user.save().then(_ => {
 
         let ride = new Ride({
             "uuid": newRideUuid,
-            "fromPK": fromPK,
+            "routeType": routeType,
             "owner": telegramId,
             "ownerName": username,
             "users": [telegramId],
             "usernames": [username],
-            "deleted": false
+            "deleted": false,
+            "createdAt": new Date()
         })
 
         ride.save().then(_ => {
@@ -514,12 +611,12 @@ function rideDelete(userId, queryId, {rideUuid}) {
         .catch(err => console.log(err))
 }
 
-function rideDeleteAll(userId, queryId, {rides}) {
+function rideDeleteAll(userId, queryId, {}) {
 
     console.log('queryId = ', queryId)
-    console.log('ridesUuids = ', rides)
+    console.log('userId = ', userId)
 
-    Ride.find({uuid: {'$in': rides}, deleted: false})
+    Ride.find({owner: {'$in': [userId]}, deleted: false})
         .then(rides => {
 
             console.log('rides = ', rides)
@@ -659,36 +756,120 @@ function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
     }).catch(err => console.log(err))
 }
 
-function garbageRidesCollector() {
-    console.log('------- garbageRidesCollector --------')
+function garbageRidesOverdueCollector() {
+    console.log('------- garbageRidesOverdueCollector --------')
 
     Ride.find({deleted: false, datetime: {$exists: true}})
         .then(rides => {
 
             console.log('rides found with datetime specified = ', rides.length)
 
-            let now = new Date()
+            // let now = new Date()
+            //
+            // let counterDeletedRides = 0
+            //
+            // for (i = 0; i < rides.length; i++) {
+            //     ride = rides[i]
+            //
+            //     let rideTime = ride.datetime
+            //
+            //     if (now > rideTime) {
+            //         ride.deleted = true
+            //         console.log('ride to delete = ', ride.uuid)
+            //
+            //         ride.save().catch(e => console.log(e))
+            //
+            //         counterDeletedRides++
+            //     }
+            // }
+            //
+            // console.log('Rides garbage collected = ', counterDeletedRides)
 
-            let counterDeletedRides = 0
+            garbageRidesCollection('overdue', rides)
 
-            for (let i = 0; i < rides.length; i++) {
-                ride = rides[i]
-
-                let rideTime = ride.datetime
-
-                if (now > rideTime) {
-                    ride.deleted = true
-                    console.log('ride to delete = ', ride.uuid)
-
-                    ride.save().catch(e => console.log(e))
-
-                    counterDeletedRides++
-                }
-            }
-
-            console.log('Rides garbage collected = ', counterDeletedRides)
-
-            setTimeout(garbageRidesCollector, 1000 * 60 * 5)
+            setTimeout(garbageRidesOverdueCollector, config.garbageRideOverdueCollectorTimeout)
 
         }).catch(err => console.log(err))
+    
+}
+
+function garbageRidesAbandonedCollector() {
+
+    console.log('------- garbageRidesAbandonedCollector --------')
+
+    Ride.find({deleted: false, datetime: {$exists: false}})
+        .then(rides => {
+
+            // let now = new Date()
+            //
+            // let counterDeletedRides = 0
+            //
+            // for (i = 0; i < rides.length; i++) {
+            //     ride = rides[i]
+            //
+            //     let rideCreatedAt = ride.createdAt
+            //
+            //     if (daysBetween(now, rideCreatedAt) > 1) {
+            //         ride.deleted = true
+            //         console.log('ride to delete = ', ride.uuid)
+            //
+            //         ride.save().catch(e => console.log(e))
+            //
+            //         counterDeletedRides++
+            //     }
+            // }
+            //
+            // console.log('Rides garbage abandoned collected = ', counterDeletedRides)
+
+            garbageRidesCollection('abandoned', rides)
+
+            setTimeout(garbageRidesAbandonedCollector, config.garbageRideAbandonedCollectorTimeout)
+        })
+}
+
+function garbageRidesCollection(collectionType, rides) {
+
+    let now = new Date()
+
+    let counterDeletedRides = 0
+
+    for (i = 0; i < rides.length; i++) {
+        ride = rides[i]
+
+
+        let paramDate = collectionType == 'overdue' ? ride.datetime : ride.createdAt
+
+        let clause = collectionType == 'overdue' ? now > rideTime : daysBetween(now, paramDate) > 1
+
+        if (clause) {
+            ride.deleted = true
+            console.log('ride to delete = ', ride.uuid)
+
+            ride.save().catch(e => console.log(e))
+
+            counterDeletedRides++
+        }
+    }
+
+    console.log(`Rides garbage ${collectionType == 'overdue' ? 'overdue' : 'abandoned'} collected = `, counterDeletedRides)
+
+}
+
+function daysBetween(date1, date2) {
+    //Get 1 day in milliseconds
+    let one_day=1000*60*60*24
+
+    // Convert both dates to milliseconds
+    let date1_ms = date1.getTime()
+    let date2_ms = date2.getTime()
+
+    // Calculate the difference in milliseconds
+    let difference_ms = date1_ms - date2_ms
+
+    // Convert back to days and return
+
+    console.log('daysBetween = ', difference_ms/one_day)
+
+    return Math.round(difference_ms/one_day)
+
 }
