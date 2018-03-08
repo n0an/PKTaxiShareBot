@@ -117,12 +117,47 @@ bot.on('message', msg => {
             createRide(ROUTE_TYPE.TO_PK_FROM_GLOBUS, chatId, msg.from.id, msg.from.username)
             break
 
+        case kb.viewRide.FROM_PK_TO_NAHABINO:
+            console.log('kb.viewRide.FROM_PK_TO_NAHABINO')
+            showRides(ROUTE_TYPE.FROM_PK_TO_NAHABINO, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.TO_PK_FROM_NAHABINO:
+            console.log('kb.viewRide.TO_PK_FROM_NAHABINO')
+            showRides(ROUTE_TYPE.TO_PK_FROM_NAHABINO, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.FROM_PK_TO_MOSCOW:
+            console.log('kb.viewRide.FROM_PK_TO_MOSCOW')
+            showRides(ROUTE_TYPE.FROM_PK_TO_MOSCOW, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.TO_PK_FROM_MOSCOW:
+            console.log('kb.viewRide.TO_PK_FROM_MOSCOW')
+            showRides(ROUTE_TYPE.TO_PK_FROM_MOSCOW, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.FROM_PK_TO_GLOBUS:
+            console.log('kb.viewRide.FROM_PK_TO_GLOBUS')
+            showRides(ROUTE_TYPE.FROM_PK_TO_GLOBUS, chatId, msg.from.id)
+            break
+
+        case kb.viewRide.TO_PK_FROM_GLOBUS:
+            console.log('kb.viewRide.TO_PK_FROM_GLOBUS')
+            showRides(ROUTE_TYPE.TO_PK_FROM_GLOBUS, chatId, msg.from.id)
+            break
+
+
         case kb.home.rides:
             console.log('chatId = ', chatId)
             console.log('kb.home.rides')
 
-            showRides(chatId, msg.from.id)
+
+            bot.sendMessage(chatId, 'Выберите маршрут:', {
+                reply_markup: {keyboard: keyboard.viewRide}
+            })
             break
+
 
         case kb.home.myRides:
             console.log('chatId = ', chatId)
@@ -395,9 +430,11 @@ function prepareHTMLShowRides(rides) {
 //         SHOW RIDE
 // -------------------------
 
-function showRides(chatId, telegramId) {
+function showRides(routeType, chatId, telegramId) {
 
-    Ride.find({owner: {'$nin': [telegramId]}, deleted: false})
+    console.log('showRides --', routeType)
+
+    Ride.find({owner: {'$nin': [telegramId]}, deleted: false, routeType: {'$in': [routeType]}})
         .then(rides => {
 
             let html
@@ -455,13 +492,6 @@ function showMyRides(chatId, telegramId) {
 //       CREATE RIDE
 // -------------------------
 
-function createRideFromPK(chatId, telegramId, username) {
-    createRide(true, chatId, telegramId, username)
-}
-
-function createRideToPK(chatId, telegramId, username) {
-    createRide(false, chatId, telegramId, username)
-}
 
 function createRide(routeType, chatId, telegramId, username) {
 
