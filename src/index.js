@@ -10,7 +10,6 @@ const helper = require('./helper')
 const keyboard = require('./keyboard')
 const kb = require('./keyboard-buttons')
 const database = require('../database.json')
-const dateFormat = require('datetime')
 
 // ===========================================
 //                 PROPERTIES
