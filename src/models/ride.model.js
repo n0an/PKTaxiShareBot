@@ -16,7 +16,7 @@ const RideSchema = new Schema({
     },
     ownerName: {
         type: String,
-        required: false
+        required: true
     },
     users: {
         type: [Number],
@@ -29,6 +29,10 @@ const RideSchema = new Schema({
     deleted: {
         type: Boolean,
         required: true
+    },
+    time: {
+        type: Number,
+        required: false
     }
 })
 

@@ -46,7 +46,9 @@ const User = mongoose.model('users')
 const ACTION_TYPE = {
     RIDE_DELETE: 'ride_delete',
     RIDE_TOGGLE_JOIN: 'ride_toggle_join',
-    RIDE_DELETE_ALL: 'ride_delete_all'
+    RIDE_DELETE_ALL: 'ride_delete_all',
+    RIDE_TIME: 'ride_time',
+
 }
 
 const bot = new TelegramBot(token.TOKEN, {
@@ -170,21 +172,70 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
 
             let actionType = userIsOwner ? ACTION_TYPE.RIDE_DELETE : ACTION_TYPE.RIDE_TOGGLE_JOIN
 
+            let inline_keyboard = [
+                [
+                    {
+                        text: inlineKeyboardText,
+                        callback_data: JSON.stringify({
+                            type: actionType,
+                            rideUuid: ride.uuid,
+                            userIsJoined: userIsJoined
+                        })
+                    }
+                ]
+
+            ]
+
+            if (userIsOwner) {
+
+                let timeStampsMarks = [['+30 мин', '+1 ч'],
+                                        ['+2 ч', '+3 ч', '+1 д']]
+
+
+                let timers_keyboard1 = []
+                let timers_keyboard2 = []
+
+                for (i = 0; i < timeStampsMarks[0].length; i++) {
+
+                    console.log('timeStampsMarks[0][i] = ', timeStampsMarks[0][i])
+
+                    let timeStampButton =
+                        {
+                            text: timeStampsMarks[0][i],
+                            callback_data: JSON.stringify({
+                                type: ACTION_TYPE.RIDE_TIME,
+                                rideUuid: ride.uuid,
+                                timeStamp: i+1
+                            })
+                        }
+
+                    timers_keyboard1.push(timeStampButton)
+                }
+
+                for (i = 0; i < timeStampsMarks[1].length; i++) {
+
+                    let timeStampButton =
+                        {
+                            text: timeStampsMarks[1][i],
+                            callback_data: JSON.stringify({
+                                type: ACTION_TYPE.RIDE_TIME,
+                                rideUuid: ride.uuid,
+                                timeStamp: i+3
+                            })
+                        }
+
+                    timers_keyboard2.push(timeStampButton)
+                }
+
+                inline_keyboard.push(timers_keyboard1, timers_keyboard2)
+            }
+
+            console.log('inline_keyboard = ', inline_keyboard)
+
             bot.sendMessage(chatId, caption, {
                 reply_markup: {
 
-                    inline_keyboard: [
-                        [
-                            {
-                                text: inlineKeyboardText,
-                                callback_data: JSON.stringify({
-                                    type: actionType,
-                                    rideUuid: ride.uuid,
-                                    userIsJoined: userIsJoined
-                                })
-                            }
-                        ]
-                    ]
+                    inline_keyboard: inline_keyboard
                 },
                 parse_mode: 'HTML'
             })
@@ -217,6 +268,8 @@ bot.on('callback_query', query => {
         toggleJoinRide(userId, username,  query.id, data)
     } else if (type === ACTION_TYPE.RIDE_DELETE_ALL) {
         rideDeleteAll(userId, query.id, data)
+    } else if (type === ACTION_TYPE.RIDE_TIME) {
+        setRideTime(userId, query.id, data)
     }
 
 // if (type === ACTION_TYPE.SHOW_CINEMAS_MAP) {
@@ -249,9 +302,9 @@ function sendHTML(chatId, html, kbName = null) {
     bot.sendMessage(chatId, html, options)
 }
 
-// --------------------
-//         SHOW
-// --------------------
+// -------------------------
+//         SHOW RIDE
+// -------------------------
 
 function showRides(chatId, telegramId) {
 
@@ -317,9 +370,9 @@ function showMyRides(chatId, telegramId) {
         }).catch(e => console.log(e))
 }
 
-// --------------------
-//       CREATE
-// --------------------
+// -------------------------
+//       CREATE RIDE
+// -------------------------
 
 function createRideFromPK(chatId, telegramId, username) {
     createRide(true, chatId, telegramId, username)
@@ -400,7 +453,8 @@ function saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid
             "ownerName": username,
             "users": [telegramId],
             "usernames": [username],
-            "deleted": false
+            "deleted": false,
+            "time": 0
         })
 
         ride.save().then(_ => {
@@ -544,4 +598,51 @@ function toggleJoinRide(userId, username, queryId, {rideUuid, userIsJoined}) {
                 }).catch(err => console.log(err))
             }).catch(err => console.log(err))
         })
+}
+
+
+// -----------------------------
+//        SET TIME
+// -----------------------------
+
+function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
+
+    console.log('queryId = ', queryId)
+
+    let userPromise
+
+    console.log('rideUuid = ', rideUuid)
+    console.log('timeStamp = ', timeStamp)
+
+    Promise.all([
+        Ride.findOne({uuid: rideUuid}),
+        User.findOne({telegramId: userId})
+    ])
+        .then(([ride, user]) => {
+
+            if (user) {
+
+                user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
+
+                userPromise = user
+
+
+            } else {
+                console.log('!CRITICAL: no user found!')
+            }
+
+            const answerText = 'Поездка удалена'
+
+            ride.deleted = true
+
+            ride.save().then(_ => {
+                userPromise.save().then(_ => {
+                    bot.answerCallbackQuery({
+                        callback_query_id: queryId,
+                        text: answerText
+                    })
+                }).catch(err => console.log(err))
+            }).catch(err => console.log(err))
+        })
+        .catch(err => console.log(err))
 }
