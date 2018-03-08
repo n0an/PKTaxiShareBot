@@ -1,4 +1,8 @@
+const dateFormat = require('dateformat')
+
 module.exports = {
+
+
 
     logStart() {
         console.log('Bot has been started ...')
@@ -19,6 +23,8 @@ module.exports = {
         let m = rideDate.getMinutes()
         let d = rideDate.getDay()
 
+        m = checkTime(m)
+
         let dateString = `${h}:${m}`
 
         let now = new Date()
@@ -30,6 +36,13 @@ module.exports = {
 
         return dateString
     }
+}
+
+function checkTime(i) {
+    if (i < 10) {
+        i = "0" + i;
+    }
+    return i;
 }
 
 function formatDate(date) {

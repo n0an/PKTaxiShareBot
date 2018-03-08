@@ -10,6 +10,7 @@ const helper = require('./helper')
 const keyboard = require('./keyboard')
 const kb = require('./keyboard-buttons')
 const database = require('../database.json')
+const dateFormat = require('datetime')
 
 // ===========================================
 //                 PROPERTIES
@@ -54,6 +55,8 @@ const ACTION_TYPE = {
 const bot = new TelegramBot(token.TOKEN, {
     polling: true
 })
+
+garbageRidesCollector()
 
 // ===========================================
 //              MAIN BOT LISTENER
@@ -619,7 +622,7 @@ function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
 
         switch (timeStamp) {
             case 1:
-                interval = 30 * interval
+                interval = 1 * interval
                 break
             case 2:
                 interval = 60 * interval
@@ -651,3 +654,38 @@ function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
 
     }).catch(err => console.log(err))
 }
+
+function garbageRidesCollector() {
+    console.log('------- garbageRidesCollector --------')
+
+    Ride.find({deleted: false, datetime: {$exists: true}})
+        .then(rides => {
+
+            console.log('rides found with datetime specified = ', rides.length)
+
+            let now = new Date()
+
+            let counterDeletedRides = 0
+
+            for (let i = 0; i < rides.length; i++) {
+                ride = rides[i]
+
+                let rideTime = ride.datetime
+
+                if (now > rideTime) {
+                    ride.deleted = true
+                    console.log('ride to delete = ', ride.uuid)
+
+                    ride.save().catch(e => console.log(e))
+
+                    counterDeletedRides++
+                }
+            }
+
+            console.log('Rides garbage collected = ', counterDeletedRides)
+
+            setTimeout(garbageRidesCollector, 1000 * 60 * 5)
+
+        }).catch(err => console.log(err))
+}
+
