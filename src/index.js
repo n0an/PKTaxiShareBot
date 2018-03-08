@@ -48,7 +48,6 @@ const ACTION_TYPE = {
     RIDE_TOGGLE_JOIN: 'ride_toggle_join',
     RIDE_DELETE_ALL: 'ride_delete_all',
     RIDE_TIME: 'ride_time',
-
 }
 
 const bot = new TelegramBot(token.TOKEN, {
@@ -159,7 +158,6 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
 
                 participants = ride.usernames.filter(uName => uName != msg.from.username)
 
-
                 if (participants.length > 0) {
                     html = participants.map((p, i) => {
                         return `<b>${i + 1}.</b> @${p}`
@@ -180,7 +178,6 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
                 caption += `\nОтправление: ${helper.getDateFromRide(ride)}`
             }
 
-
             let actionType = userIsOwner ? ACTION_TYPE.RIDE_DELETE : ACTION_TYPE.RIDE_TOGGLE_JOIN
 
             let inline_keyboard = [
@@ -194,7 +191,6 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
                         })
                     }
                 ]
-
             ]
 
             if (userIsOwner) {
@@ -280,14 +276,11 @@ bot.on('callback_query', query => {
     } else if (type === ACTION_TYPE.RIDE_TIME) {
         setRideTime(userId, query.id, data)
     }
-
-
 })
 
 // ===============================
 //         HELPER METHODS
 // ===============================
-
 
 function sendHTML(chatId, html, kbName = null) {
     const options = {
@@ -303,7 +296,6 @@ function sendHTML(chatId, html, kbName = null) {
     bot.sendMessage(chatId, html, options)
 }
 
-
 function prepareHTMLShowRides(rides) {
     return rides.map((r, i) => {
         let outStr = `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК->Нахабино" : "Нахабино->ПК"}`
@@ -315,8 +307,6 @@ function prepareHTMLShowRides(rides) {
         return outStr
     }).join('\n')
 }
-
-
 
 // -------------------------
 //         SHOW RIDE
@@ -487,7 +477,6 @@ function rideDelete(userId, queryId, {rideUuid}) {
 
                 userPromise = user
 
-
             } else {
                 console.log('!CRITICAL: no user found!')
             }
@@ -517,7 +506,6 @@ function rideDeleteAll(userId, queryId, {rides}) {
         .then(rides => {
 
             console.log('rides = ', rides)
-
 
             const answerText = 'Ваши поездки удалены'
 
@@ -687,4 +675,3 @@ function garbageRidesCollector() {
 
         }).catch(err => console.log(err))
 }
-
