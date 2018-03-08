@@ -230,7 +230,6 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
                 inline_keyboard.push(timers_keyboard1, timers_keyboard2)
             }
 
-            console.log('inline_keyboard = ', inline_keyboard)
 
             bot.sendMessage(chatId, caption, {
                 reply_markup: {
@@ -614,35 +613,17 @@ function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
     console.log('rideUuid = ', rideUuid)
     console.log('timeStamp = ', timeStamp)
 
-    Promise.all([
-        Ride.findOne({uuid: rideUuid}),
-        User.findOne({telegramId: userId})
-    ])
-        .then(([ride, user]) => {
+    Ride.findOne({uuid: rideUuid}).then(ride => {
 
-            if (user) {
+        ride.time = timeStamp
+        ride.save().then(_ => {
+            bot.answerCallbackQuery({
+                callback_query_id: queryId,
+                text: 'Время установлено'
+            })
+        }).catch(err => console.log(err))
 
-                user.rides = user.rides.filter(rUuid => rUuid !== rideUuid)
-
-                userPromise = user
+    }).catch(err => console.log(err))
 
 
-            } else {
-                console.log('!CRITICAL: no user found!')
-            }
-
-            const answerText = 'Поездка удалена'
-
-            ride.deleted = true
-
-            ride.save().then(_ => {
-                userPromise.save().then(_ => {
-                    bot.answerCallbackQuery({
-                        callback_query_id: queryId,
-                        text: answerText
-                    })
-                }).catch(err => console.log(err))
-            }).catch(err => console.log(err))
-        })
-        .catch(err => console.log(err))
 }
