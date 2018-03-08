@@ -30,8 +30,8 @@ const RideSchema = new Schema({
         type: Boolean,
         required: true
     },
-    time: {
-        type: Number,
+    datetime: {
+        type: Date,
         required: false
     }
 })

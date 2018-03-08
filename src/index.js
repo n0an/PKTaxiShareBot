@@ -128,6 +128,7 @@ bot.onText(/\/start/, msg => {
 //        RIDES COMMAND LISTENER
 // ====================================
 
+
 bot.onText(/\/r(.+)/, (msg, [source, match]) => {
     const rideUuid = helper.getItemUuid(source)
     const chatId = helper.getChatId(msg)
@@ -152,23 +153,31 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
 
             if (userIsOwner) {
                 inlineKeyboardText = 'Удалить поездку'
-                caption += 'Участники:\n'
+                caption += 'Участники:'
 
                 participants = ride.usernames.filter(uName => uName != msg.from.username)
 
-                console.log('participants = ',participants)
 
-                html = participants.map((p, i) => {
-                    return `<b>${i + 1}.</b> @${p}`
-                }).join('\n')
-
-                caption += html
+                if (participants.length > 0) {
+                    html = participants.map((p, i) => {
+                        return `<b>${i + 1}.</b> @${p}`
+                    }).join('\n')
+                    caption += '\n' + html
+                } else {
+                    caption += ' нет'
+                }
 
             } else {
                 inlineKeyboardText = !userIsJoined ? 'Присоединиться к поездке' : 'Отказаться от поездки'
                 caption += `Организатор: @${ride.ownerName}\n`
                 caption += `Участников: ${ride.users.length}`
             }
+
+            if (ride.datetime) {
+
+                caption += `\nОтправление: ${helper.getDateFromRide(ride)}`
+            }
+
 
             let actionType = userIsOwner ? ACTION_TYPE.RIDE_DELETE : ACTION_TYPE.RIDE_TOGGLE_JOIN
 
@@ -190,7 +199,6 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
 
                 let timeStampsMarks = [['+30 мин', '+1 ч'],
                                         ['+2 ч', '+3 ч', '+1 д']]
-
 
                 let timers_keyboard1 = []
                 let timers_keyboard2 = []
@@ -230,7 +238,6 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
                 inline_keyboard.push(timers_keyboard1, timers_keyboard2)
             }
 
-
             bot.sendMessage(chatId, caption, {
                 reply_markup: {
 
@@ -240,6 +247,7 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
             })
         })
 })
+
 
 // ====================================
 //         CALLBACK LISTENER
@@ -271,21 +279,13 @@ bot.on('callback_query', query => {
         setRideTime(userId, query.id, data)
     }
 
-// if (type === ACTION_TYPE.SHOW_CINEMAS_MAP) {
-//   const {lat, lon} = data
-//   bot.sendLocation(query.message.chat.id, lat, lon)
-// } else if (type === ACTION_TYPE.SHOW_CINEMAS) {
-//   sendCinemasByQuery(userId, {uuid: {'$in': data.cinemaUuids}})
-// } else if (type === ACTION_TYPE.TOGGLE_FAV_FILM) {
-//   toggleFavouriteFilm(userId, query.id, data)
-// } else if (type === ACTION_TYPE.SHOW_FILMS) {
-//   sendFilmsByQuery(userId, {uuid: {'$in': data.filmUuids}})
-// }
+
 })
 
 // ===============================
 //         HELPER METHODS
 // ===============================
+
 
 function sendHTML(chatId, html, kbName = null) {
     const options = {
@@ -301,6 +301,21 @@ function sendHTML(chatId, html, kbName = null) {
     bot.sendMessage(chatId, html, options)
 }
 
+
+function prepareHTMLShowRides(rides) {
+    return rides.map((r, i) => {
+        let outStr = `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК->Нахабино" : "Нахабино->ПК"}`
+        outStr += `- ${r.users.length} чел`
+        if (r.datetime) {
+            outStr += `, ${helper.getDateFromRide(r)}`
+        }
+        outStr += ` (/r${r.uuid})`
+        return outStr
+    }).join('\n')
+}
+
+
+
 // -------------------------
 //         SHOW RIDE
 // -------------------------
@@ -312,9 +327,7 @@ function showRides(chatId, telegramId) {
 
             let html
             if (rides.length) {
-                html = rides.map((r, i) => {
-                    return `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК->Нахабино" : "Нахабино->ПК"} - ${r.users.length} чел (/r${r.uuid})`
-                }).join('\n')
+                html = prepareHTMLShowRides(rides)
             } else {
                 html = 'Никто пока не создал поездок'
             }
@@ -330,17 +343,13 @@ function showMyRides(chatId, telegramId) {
             let html
 
             if (rides.length) {
-                html = rides.map((r, i) => {
-                    return `<b>${i + 1}.</b> ${r.fromPK === true? "ПК->Нахабино" : "Нахабино->ПК"} - ${r.users.length} чел (/r${r.uuid})`
-                }).join('\n')
+                html = prepareHTMLShowRides(rides)
 
                 let inlineKeyboardText = 'Удалить мои поездки'
 
                 let actionType = ACTION_TYPE.RIDE_DELETE_ALL
 
                 let rideUuids = rides.map((r) => r.uuid)
-
-                console.log('rideUuids = ', rideUuids)
 
                 bot.sendMessage(chatId, html, {
                     reply_markup: {
@@ -363,7 +372,6 @@ function showMyRides(chatId, telegramId) {
             } else {
                 html = 'Нет созданных Вами поездок'
                 sendHTML(chatId, html, 'home')
-
             }
 
         }).catch(e => console.log(e))
@@ -383,20 +391,14 @@ function createRideToPK(chatId, telegramId, username) {
 
 function createRide(fromPK, chatId, telegramId, username) {
 
-    console.log('ownername = ', username)
-
     Ride.find()
         .then(rides => {
-            console.log('rides count = ', rides.length)
 
             let newRideUuid = `r${rides.length + 1}`
-            console.log('newRideUuid = ', newRideUuid)
 
             User.findOne({telegramId})
                 .then(user => {
                     if (user) {
-
-                        console.log('newRideUuid = ', newRideUuid)
 
                         user.rides.push(newRideUuid)
 
@@ -407,7 +409,6 @@ function createRide(fromPK, chatId, telegramId, username) {
                         }
 
                     } else {
-                        console.log('createRideFromPK.noUser')
 
                         let user = new User({
                             telegramId: telegramId,
@@ -440,7 +441,6 @@ function alertNoUsername(chatId, caption) {
     })
 }
 
-
 function saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid, chatId) {
 
     user.save().then(_ => {
@@ -452,8 +452,7 @@ function saveUserWithCreatedRide(user, fromPK, telegramId, username, newRideUuid
             "ownerName": username,
             "users": [telegramId],
             "usernames": [username],
-            "deleted": false,
-            "time": 0
+            "deleted": false
         })
 
         ride.save().then(_ => {
@@ -599,7 +598,6 @@ function toggleJoinRide(userId, username, queryId, {rideUuid, userIsJoined}) {
         })
 }
 
-
 // -----------------------------
 //        SET TIME
 // -----------------------------
@@ -615,7 +613,35 @@ function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
 
     Ride.findOne({uuid: rideUuid}).then(ride => {
 
-        ride.time = timeStamp
+        let now = new Date()
+
+        let interval = 60 * 1000
+
+        switch (timeStamp) {
+            case 1:
+                interval = 30 * interval
+                break
+            case 2:
+                interval = 60 * interval
+                break
+            case 3:
+                interval = 120 * interval
+                break
+            case 4:
+                interval = 180 * interval
+                break
+            case 5:
+                interval = 24 * 60 * interval
+                break
+            default:
+                break
+        }
+
+        let dueDate = new Date(now.getTime() + interval)
+
+        ride.datetime = dueDate
+        // ride.datetime = now
+
         ride.save().then(_ => {
             bot.answerCallbackQuery({
                 callback_query_id: queryId,
@@ -624,6 +650,4 @@ function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
         }).catch(err => console.log(err))
 
     }).catch(err => console.log(err))
-
-
 }
