@@ -103,6 +103,10 @@ bot.on('message', msg => {
             })
             break
 
+        case kb.help:
+            sendHTML(chatId, helper.helptext(), 'home')
+            break
+
         default:
             console.log(msg.text)
             break
@@ -120,8 +124,21 @@ bot.onText(/\/start/, msg => {
     const text = `Здравствуйте, ${msg.from.first_name}\nВыберите команду для начала работы`
     bot.sendMessage(helper.getChatId(msg), text, {
         reply_markup: {
+            markdown: 'html',
             keyboard: keyboard.home
         }
+    })
+})
+
+bot.onText(/\/help/, msg => {
+
+    console.log('bot.onText')
+
+    bot.sendMessage(helper.getChatId(msg), helper.helptext(), {
+        reply_markup: {
+            keyboard: keyboard.home
+        },
+        parse_mode: 'HTML'
     })
 })
 
@@ -299,7 +316,7 @@ function sendHTML(chatId, html, kbName = null) {
 function prepareHTMLShowRides(rides) {
     return rides.map((r, i) => {
         let outStr = `<b>${i + 1}.</b> ${r.fromPK === true ? "ПК->Нахабино" : "Нахабино->ПК"}`
-        outStr += `- ${r.users.length} чел`
+        outStr += ` - ${r.users.length} чел`
         if (r.datetime) {
             outStr += `, ${helper.getDateFromRide(r)}`
         }
