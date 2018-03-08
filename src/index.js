@@ -135,7 +135,7 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
     const chatId = helper.getChatId(msg)
 
     Promise.all([
-        Ride.findOne({uuid: rideUuid}),
+        Ride.findOne({uuid: rideUuid, deleted: false}),
         User.findOne({telegramId: msg.from.id})
     ])
         .then(([ride, user]) => {
@@ -609,7 +609,7 @@ function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
 
         switch (timeStamp) {
             case 1:
-                interval = 1 * interval
+                interval = 30 * interval
                 break
             case 2:
                 interval = 60 * interval
