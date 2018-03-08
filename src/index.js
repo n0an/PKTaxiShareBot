@@ -68,7 +68,8 @@ const bot = new TelegramBot(token.TOKEN, {
     polling: true
 })
 
-garbageRidesCollector()
+garbageRidesOverdueCollector()
+garbageRidesAbandonedCollector()
 
 // ===========================================
 //              MAIN BOT LISTENER
@@ -281,7 +282,7 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
             if (userIsOwner) {
 
                 let timeStampsMarks = [['+30 мин', '+1 ч'],
-                                        ['+2 ч', '+3 ч', '+1 д']]
+                    ['+2 ч', '+3 ч', '+1 д']]
 
                 let timers_keyboard1 = []
                 let timers_keyboard2 = []
@@ -755,36 +756,120 @@ function setRideTime(userId, queryId, {rideUuid, timeStamp}) {
     }).catch(err => console.log(err))
 }
 
-function garbageRidesCollector() {
-    console.log('------- garbageRidesCollector --------')
+function garbageRidesOverdueCollector() {
+    console.log('------- garbageRidesOverdueCollector --------')
 
     Ride.find({deleted: false, datetime: {$exists: true}})
         .then(rides => {
 
             console.log('rides found with datetime specified = ', rides.length)
 
-            let now = new Date()
+            // let now = new Date()
+            //
+            // let counterDeletedRides = 0
+            //
+            // for (i = 0; i < rides.length; i++) {
+            //     ride = rides[i]
+            //
+            //     let rideTime = ride.datetime
+            //
+            //     if (now > rideTime) {
+            //         ride.deleted = true
+            //         console.log('ride to delete = ', ride.uuid)
+            //
+            //         ride.save().catch(e => console.log(e))
+            //
+            //         counterDeletedRides++
+            //     }
+            // }
+            //
+            // console.log('Rides garbage collected = ', counterDeletedRides)
 
-            let counterDeletedRides = 0
+            garbageRidesCollection('overdue', rides)
 
-            for (let i = 0; i < rides.length; i++) {
-                ride = rides[i]
-
-                let rideTime = ride.datetime
-
-                if (now > rideTime) {
-                    ride.deleted = true
-                    console.log('ride to delete = ', ride.uuid)
-
-                    ride.save().catch(e => console.log(e))
-
-                    counterDeletedRides++
-                }
-            }
-
-            console.log('Rides garbage collected = ', counterDeletedRides)
-
-            setTimeout(garbageRidesCollector, 1000 * 60 * 5)
+            setTimeout(garbageRidesOverdueCollector, config.garbageRideOverdueCollectorTimeout)
 
         }).catch(err => console.log(err))
+    
+}
+
+function garbageRidesAbandonedCollector() {
+
+    console.log('------- garbageRidesAbandonedCollector --------')
+
+    Ride.find({deleted: false, datetime: {$exists: false}})
+        .then(rides => {
+
+            // let now = new Date()
+            //
+            // let counterDeletedRides = 0
+            //
+            // for (i = 0; i < rides.length; i++) {
+            //     ride = rides[i]
+            //
+            //     let rideCreatedAt = ride.createdAt
+            //
+            //     if (daysBetween(now, rideCreatedAt) > 1) {
+            //         ride.deleted = true
+            //         console.log('ride to delete = ', ride.uuid)
+            //
+            //         ride.save().catch(e => console.log(e))
+            //
+            //         counterDeletedRides++
+            //     }
+            // }
+            //
+            // console.log('Rides garbage abandoned collected = ', counterDeletedRides)
+
+            garbageRidesCollection('abandoned', rides)
+
+            setTimeout(garbageRidesAbandonedCollector, config.garbageRideAbandonedCollectorTimeout)
+        })
+}
+
+function garbageRidesCollection(collectionType, rides) {
+
+    let now = new Date()
+
+    let counterDeletedRides = 0
+
+    for (i = 0; i < rides.length; i++) {
+        ride = rides[i]
+
+
+        let paramDate = collectionType == 'overdue' ? ride.datetime : ride.createdAt
+
+        let clause = collectionType == 'overdue' ? now > rideTime : daysBetween(now, paramDate) > 1
+
+        if (clause) {
+            ride.deleted = true
+            console.log('ride to delete = ', ride.uuid)
+
+            ride.save().catch(e => console.log(e))
+
+            counterDeletedRides++
+        }
+    }
+
+    console.log(`Rides garbage ${collectionType == 'overdue' ? 'overdue' : 'abandoned'} collected = `, counterDeletedRides)
+
+}
+
+function daysBetween(date1, date2) {
+    //Get 1 day in milliseconds
+    let one_day=1000*60*60*24
+
+    // Convert both dates to milliseconds
+    let date1_ms = date1.getTime()
+    let date2_ms = date2.getTime()
+
+    // Calculate the difference in milliseconds
+    let difference_ms = date1_ms - date2_ms
+
+    // Convert back to days and return
+
+    console.log('daysBetween = ', difference_ms/one_day)
+
+    return Math.round(difference_ms/one_day)
+
 }
