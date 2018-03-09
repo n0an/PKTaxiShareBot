@@ -366,7 +366,8 @@ bot.on('callback_query', query => {
 
 function sendHTML(chatId, html, kbName = null) {
     const options = {
-        parse_mode: 'HTML'
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
     }
 
     if (kbName) {
