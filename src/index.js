@@ -680,8 +680,13 @@ function toggleJoinRide(userId, username, queryId, {rideUuid, userIsJoined}) {
                     }
 
                 } else {
-                    user.rides.push(rideUuid)
-                    ride.users.push(userId)
+                    if (user.rides.indexOf(rideUuid) === -1) {
+                        user.rides.push(rideUuid)
+                    }
+
+                    if (ride.users.indexOf(userId) === -1) {
+                        ride.users.push(userId)
+                    }
 
                     if (username) {
                         ride.usernames.push(username)
