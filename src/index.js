@@ -689,7 +689,9 @@ function toggleJoinRide(userId, username, queryId, {rideUuid, userIsJoined}) {
                     }
 
                     if (username) {
-                        ride.usernames.push(username)
+                        if (ride.usernames.indexOf(username) === -1) {
+                            ride.usernames.push(username)
+                        }
                     } else {
                         alertJoinNoUsername(chatId)
                     }
