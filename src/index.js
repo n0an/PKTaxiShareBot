@@ -155,9 +155,6 @@ bot.on('message', msg => {
 
             showRidesWith(null, chatId, msg.from.id)
 
-            // bot.sendMessage(chatId, 'Фильтр по маршруту:', {
-            //     reply_markup: {keyboard: keyboard.viewRide}
-            // })
             break
 
         case kb.home.myRides:
@@ -238,7 +235,7 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
             let caption = `Маршрут: ${ride.fromPK === true ? "ПК->Нахабино" : "Нахабино->ПК"}\n`
 
             if (userIsOwner) {
-                inlineKeyboardText = 'Удалить поездку'
+                inlineKeyboardText = '❌ Удалить поездку'
                 caption += 'Участники:'
 
                 participants = ride.usernames.filter(uName => uName != msg.from.username)
@@ -253,7 +250,7 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
                 }
 
             } else {
-                inlineKeyboardText = !userIsJoined ? 'Присоединиться к поездке' : 'Отказаться от поездки'
+                inlineKeyboardText = !userIsJoined ? '🔵 Присоединиться к поездке' : '🔴 Отказаться от поездки'
                 caption += `Организатор: @${ride.ownerName}\n`
                 caption += `Участников: ${ride.users.length}`
             }
@@ -280,8 +277,8 @@ bot.onText(/\/r(.+)/, (msg, [source, match]) => {
 
             if (userIsOwner) {
 
-                let timeStampsMarks = [['+30 мин', '+1 ч'],
-                    ['+2 ч', '+3 ч', '+1 д']]
+                let timeStampsMarks = [['🕑 +30 мин', '🕑 +1 ч'],
+                    ['🕑 +2 ч', '🕑 +3 ч', '🕑 +1 д']]
 
                 let timers_keyboard1 = []
                 let timers_keyboard2 = []
@@ -478,7 +475,7 @@ function showMyRides(chatId, telegramId) {
 
                 console.log('html = ', html)
 
-                let inlineKeyboardText = 'Удалить все мои поездки'
+                let inlineKeyboardText = '❌ Удалить все мои поездки'
 
                 let actionType = ACTION_TYPE.RIDE_DELETE_ALL
 
