@@ -120,32 +120,32 @@ bot.on('message', msg => {
 
         case kb.viewRide.FROM_PK_TO_NAHABINO:
             console.log('kb.viewRide.FROM_PK_TO_NAHABINO')
-            showRides(ROUTE_TYPE.FROM_PK_TO_NAHABINO, chatId, msg.from.id)
+            showRidesWith(ROUTE_TYPE.FROM_PK_TO_NAHABINO, chatId, msg.from.id)
             break
 
         case kb.viewRide.TO_PK_FROM_NAHABINO:
             console.log('kb.viewRide.TO_PK_FROM_NAHABINO')
-            showRides(ROUTE_TYPE.TO_PK_FROM_NAHABINO, chatId, msg.from.id)
+            showRidesWith(ROUTE_TYPE.TO_PK_FROM_NAHABINO, chatId, msg.from.id)
             break
 
         case kb.viewRide.FROM_PK_TO_MOSCOW:
             console.log('kb.viewRide.FROM_PK_TO_MOSCOW')
-            showRides(ROUTE_TYPE.FROM_PK_TO_MOSCOW, chatId, msg.from.id)
+            showRidesWith(ROUTE_TYPE.FROM_PK_TO_MOSCOW, chatId, msg.from.id)
             break
 
         case kb.viewRide.TO_PK_FROM_MOSCOW:
             console.log('kb.viewRide.TO_PK_FROM_MOSCOW')
-            showRides(ROUTE_TYPE.TO_PK_FROM_MOSCOW, chatId, msg.from.id)
+            showRidesWith(ROUTE_TYPE.TO_PK_FROM_MOSCOW, chatId, msg.from.id)
             break
 
         case kb.viewRide.FROM_PK_TO_GLOBUS:
             console.log('kb.viewRide.FROM_PK_TO_GLOBUS')
-            showRides(ROUTE_TYPE.FROM_PK_TO_GLOBUS, chatId, msg.from.id)
+            showRidesWith(ROUTE_TYPE.FROM_PK_TO_GLOBUS, chatId, msg.from.id)
             break
 
         case kb.viewRide.TO_PK_FROM_GLOBUS:
             console.log('kb.viewRide.TO_PK_FROM_GLOBUS')
-            showRides(ROUTE_TYPE.TO_PK_FROM_GLOBUS, chatId, msg.from.id)
+            showRidesWith(ROUTE_TYPE.TO_PK_FROM_GLOBUS, chatId, msg.from.id)
             break
 
 
@@ -153,12 +153,12 @@ bot.on('message', msg => {
             console.log('chatId = ', chatId)
             console.log('kb.home.rides')
 
+            showRidesWith(null, chatId, msg.from.id)
 
-            bot.sendMessage(chatId, 'Выберите маршрут:', {
-                reply_markup: {keyboard: keyboard.viewRide}
-            })
+            // bot.sendMessage(chatId, 'Фильтр по маршруту:', {
+            //     reply_markup: {keyboard: keyboard.viewRide}
+            // })
             break
-
 
         case kb.home.myRides:
             console.log('chatId = ', chatId)
@@ -431,11 +431,20 @@ function prepareHTMLShowRides(rides) {
 //         SHOW RIDE
 // -------------------------
 
-function showRides(routeType, chatId, telegramId) {
+function showRidesWith(routeType, chatId, telegramId) {
 
     console.log('showRides --', routeType)
 
-    Ride.find({owner: {'$nin': [telegramId]}, deleted: false, routeType: {'$in': [routeType]}})
+    let rideClause = {owner: {'$nin': [telegramId]}, deleted: false}
+
+    if (routeType != null) {
+        rideClause['routeType'] = {'$in': [routeType]}
+    }
+
+    console.log('rideClause --', rideClause)
+
+
+    Ride.find(rideClause)
         .then(rides => {
 
             let html
@@ -444,10 +453,11 @@ function showRides(routeType, chatId, telegramId) {
             } else {
                 html = 'Никто пока не создал поездок'
             }
-
-            sendHTML(chatId, html, 'home')
+            let keyboard = routeType != null ? 'home' : 'viewRide'
+            sendHTML(chatId, html, keyboard)
         }).catch(e => console.log(e))
 }
+
 
 function showMyRides(chatId, telegramId) {
 
@@ -839,7 +849,7 @@ function garbageRidesCollection(collectionType, rides) {
 
         let paramDate = collectionType == 'overdue' ? ride.datetime : ride.createdAt
 
-        let clause = collectionType == 'overdue' ? now > rideTime : daysBetween(now, paramDate) > 1
+        let clause = collectionType == 'overdue' ? now > paramDate : daysBetween(now, paramDate) > 1
 
         if (clause) {
             ride.deleted = true
