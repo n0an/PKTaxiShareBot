@@ -6,7 +6,6 @@ const RideSchema = new Schema({
         type: String,
         required: true
     },
-    // 0 - PK->Nahabino, 1 - Nahabino->PK, 2 - PK->Msc, 3 - Msc->Pk, 4 - PK->Globus, 5 - Globus->PK
     routeType: {
         type: Number,
         required: true
